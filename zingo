@@ -1,0 +1,1058 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Zingo — Order Online</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#1b1b18;
+    --steel:#26251f;
+    --steel-2:#312f27;
+    --turmeric:#f0a532;
+    --turmeric-dim:#a8762b;
+    --chili:#b23a2e;
+    --zred:#ea1d25;
+    --zyellow:#ffc72c;
+    --paper:#ede6d6;
+    --paper-dim:#d9d0ba;
+    --off:#f3efe4;
+    --off-dim:#c9c4b6;
+    --radius:14px;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{
+    background:var(--ink);
+    color:var(--off);
+    font-family:'Space Grotesk', sans-serif;
+    min-height:100vh;
+    -webkit-font-smoothing:antialiased;
+  }
+  .display{font-family:'Archivo Black', sans-serif; letter-spacing:-0.01em;}
+  .mono{font-family:'Space Mono', monospace;}
+
+  a, button{font-family:inherit;}
+
+  /* ---------- App shell ---------- */
+  #app{max-width:480px; margin:0 auto; min-height:100vh; background:var(--ink); position:relative; padding-bottom:32px;}
+
+  header.top{
+    padding:20px 20px 14px;
+    display:flex; align-items:center; gap:12px;
+    border-bottom:1px solid #38362c;
+    position:sticky; top:0; background:var(--ink); z-index:20;
+  }
+  .tin-mark{width:34px; height:34px; flex-shrink:0;}
+  .brand{display:flex; flex-direction:column; line-height:1;}
+  .brand .name{font-size:19px; letter-spacing:0.02em;}
+  .brand .tag{font-size:10px; color:var(--off-dim); text-transform:uppercase; letter-spacing:0.14em; margin-top:4px; font-family:'Space Mono',monospace;}
+
+  /* ---------- Step tracker ---------- */
+  .tracker{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:14px 20px 4px; gap:4px;
+  }
+  .tracker .step{display:flex; flex-direction:column; align-items:center; gap:6px; flex:1; position:relative;}
+  .tracker .step .tin{
+    width:22px; height:22px; border-radius:50%;
+    border:2px solid var(--off-dim); background:transparent;
+    display:flex; align-items:center; justify-content:center;
+    transition:all .25s ease;
+  }
+  .tracker .step.active .tin{border-color:var(--turmeric); background:var(--turmeric); box-shadow:0 0 0 4px rgba(232,163,61,0.18);}
+  .tracker .step.done .tin{border-color:var(--turmeric); background:var(--ink);}
+  .tracker .step.done .tin::after{content:'✓'; color:var(--turmeric); font-size:12px; font-weight:700;}
+  .tracker .step .lbl{font-size:9px; text-transform:uppercase; letter-spacing:0.08em; color:var(--off-dim); font-family:'Space Mono',monospace; text-align:center;}
+  .tracker .step.active .lbl{color:var(--turmeric);}
+  .tracker .line{position:absolute; top:11px; left:50%; width:100%; height:2px; background:#38362c; z-index:-1;}
+  .tracker .step:last-child .line{display:none;}
+  .tracker .step.done .line, .tracker .step.active .line{background:var(--turmeric-dim);}
+
+  main{padding:18px 20px 8px;}
+  .view{display:none; animation:fade .28s ease;}
+  .view.active{display:block;}
+  @keyframes fade{from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:none;}}
+
+  /* ---------- Menu view ---------- */
+  .hero{
+    background:linear-gradient(160deg, var(--steel-2), var(--steel));
+    border-radius:var(--radius);
+    padding:22px 20px;
+    margin-bottom:22px;
+    position:relative;
+    overflow:hidden;
+    border:1px solid #3a382d;
+  }
+  .hero .eyebrow{font-family:'Space Mono',monospace; font-size:11px; color:var(--turmeric); text-transform:uppercase; letter-spacing:0.14em; margin-bottom:10px;}
+  .hero h1{font-size:26px; line-height:1.15; margin-bottom:10px;}
+  .hero p{color:var(--off-dim); font-size:13.5px; line-height:1.5; max-width:34ch;}
+  .hero .tins-deco{position:absolute; right:-10px; bottom:-14px; opacity:0.15; width:110px;}
+
+  .best-label{
+    display:inline-flex; align-items:center; gap:6px;
+    background:linear-gradient(90deg, var(--zyellow), #d99a1a);
+    color:#1b1b18; font-family:'Space Mono',monospace; font-size:11px; font-weight:700;
+    text-transform:uppercase; letter-spacing:0.1em; padding:6px 12px; border-radius:20px;
+    margin-bottom:12px;
+  }
+  .best-strip{display:flex; gap:10px; overflow-x:auto; padding-bottom:6px; margin-bottom:6px; -ms-overflow-style:none; scrollbar-width:none;}
+  .best-strip::-webkit-scrollbar{display:none;}
+  .best-card{
+    flex:0 0 auto; width:150px; background:var(--steel); border:1.5px solid var(--zyellow);
+    border-radius:12px; padding:12px; cursor:pointer; transition:transform .12s ease;
+  }
+  .best-card:active{transform:scale(0.96);}
+  .best-card .nm{font-size:12.5px; font-weight:700; line-height:1.3; margin-bottom:8px; min-height:32px;}
+  .best-card .pr{font-family:'Space Mono',monospace; font-size:13px; color:var(--zyellow);}
+  .badge-best{
+    display:inline-block; font-family:'Space Mono',monospace; font-size:9px; font-weight:700;
+    color:#1b1b18; background:var(--zyellow); padding:2px 6px; border-radius:8px; letter-spacing:0.06em;
+    margin-left:7px; vertical-align:middle; text-transform:uppercase;
+  }
+  .item.highlight{background:rgba(255,199,44,0.08); border-radius:10px; transition:background 1.4s ease;}
+
+  .cat-title{
+    font-size:12px; text-transform:uppercase; letter-spacing:0.14em; color:var(--turmeric);
+    font-family:'Space Mono',monospace; margin:26px 0 12px;
+    display:flex; align-items:center; gap:8px;
+  }
+  .cat-title::after{content:''; flex:1; height:1px; background:#38362c;}
+
+  .item{
+    display:flex; gap:12px; padding:14px 0; border-bottom:1px solid #302f27;
+  }
+  .item .veg{width:15px; height:15px; border:1.5px solid #4c9a4c; border-radius:3px; flex-shrink:0; margin-top:3px; display:flex; align-items:center; justify-content:center;}
+  .item .veg::after{content:''; width:7px; height:7px; border-radius:50%; background:#4c9a4c;}
+  .item .veg.non::after{background:var(--chili);}
+  .item .veg.non{border-color:var(--chili);}
+  .item .info{flex:1; min-width:0;}
+  .item .info .nm{font-size:15px; font-weight:600; margin-bottom:3px;}
+  .item .info .ds{font-size:12.5px; color:var(--off-dim); line-height:1.4; margin-bottom:8px;}
+  .item .info .pr{font-family:'Space Mono',monospace; font-size:14px; color:var(--turmeric);}
+  .item .addbtn{
+    align-self:flex-start; margin-top:2px;
+    background:transparent; border:1.5px solid var(--turmeric); color:var(--turmeric);
+    padding:6px 14px; border-radius:20px; font-size:12px; font-weight:700;
+    cursor:pointer; white-space:nowrap; transition:all .15s ease;
+    font-family:'Space Mono',monospace;
+  }
+  .item .addbtn:active{transform:scale(0.95);}
+  .item .qty-ctrl{display:flex; align-items:center; gap:10px; background:var(--turmeric); border-radius:20px; padding:5px 6px;}
+  .item .qty-ctrl button{background:var(--ink); color:var(--turmeric); border:none; width:22px; height:22px; border-radius:50%; font-size:14px; font-weight:700; cursor:pointer;}
+  .item .qty-ctrl span{color:var(--ink); font-weight:700; font-size:13px; min-width:14px; text-align:center;}
+
+  /* ---------- Cart bar ---------- */
+  .cartbar{
+    position:sticky; bottom:0; left:0; right:0;
+    background:var(--turmeric); color:var(--ink);
+    padding:14px 18px; margin:20px -20px -8px;
+    border-radius:16px 16px 0 0;
+    display:none; align-items:center; justify-content:space-between;
+    box-shadow:0 -6px 20px rgba(0,0,0,0.35);
+    cursor:pointer; border:none; width:calc(100% + 40px);
+    font-family:inherit;
+  }
+  .cartbar.show{display:flex;}
+
+  .wa-float{
+    position:fixed; bottom:22px; right:calc(50% - 240px + 18px);
+    width:54px; height:54px; border-radius:50%; background:#25D366;
+    display:flex; align-items:center; justify-content:center;
+    box-shadow:0 6px 18px rgba(0,0,0,0.4); z-index:50; text-decoration:none;
+    transition:transform .15s ease;
+  }
+  .wa-float:active{transform:scale(0.92);}
+  @media (max-width:520px){
+    .wa-float{right:18px;}
+  }
+  .cartbar .l{font-size:13px; font-weight:700;}
+  .cartbar .l small{display:block; font-size:11px; font-weight:500; opacity:0.75; font-family:'Space Mono',monospace;}
+  .cartbar .r{display:flex; align-items:center; gap:6px; font-weight:700; font-size:14px;}
+
+  /* ---------- Buttons ---------- */
+  .btn-primary{
+    width:100%; background:var(--turmeric); color:var(--ink); border:none;
+    padding:15px; border-radius:12px; font-size:15px; font-weight:700;
+    cursor:pointer; font-family:inherit; transition:transform .12s ease;
+  }
+  .btn-primary:active{transform:scale(0.98);}
+  .btn-primary:disabled{background:#5c5646; color:#8a8474; cursor:not-allowed;}
+  .btn-ghost{
+    width:100%; background:transparent; color:var(--off-dim); border:1.5px solid #3a382d;
+    padding:13px; border-radius:12px; font-size:13.5px; font-weight:600; cursor:pointer; font-family:inherit; margin-top:10px;
+  }
+
+  /* ---------- Cart view ---------- */
+  .cart-row{display:flex; align-items:center; gap:12px; padding:14px 0; border-bottom:1px solid #302f27;}
+  .cart-row .nm{flex:1; font-size:14.5px; font-weight:600;}
+  .cart-row .nm small{display:block; font-family:'Space Mono',monospace; font-size:12px; color:var(--off-dim); font-weight:400; margin-top:2px;}
+  .cart-row .qty-ctrl{display:flex; align-items:center; gap:10px; background:var(--steel); border:1px solid #3a382d; border-radius:20px; padding:5px 8px;}
+  .cart-row .qty-ctrl button{background:none; border:none; color:var(--turmeric); font-size:15px; font-weight:700; cursor:pointer; width:16px;}
+  .cart-row .qty-ctrl span{font-size:13px; min-width:14px; text-align:center;}
+  .cart-row .line-pr{font-family:'Space Mono',monospace; font-size:13.5px; min-width:58px; text-align:right;}
+
+  .empty-cart{text-align:center; padding:60px 20px; color:var(--off-dim);}
+  .empty-cart .tin-mark{width:56px; height:56px; margin:0 auto 18px; opacity:0.4;}
+  .empty-cart p{font-size:13.5px; margin-bottom:20px;}
+
+  .bill{background:var(--steel); border:1px solid #3a382d; border-radius:var(--radius); padding:18px; margin-top:22px;}
+  .bill .row{display:flex; justify-content:space-between; font-size:13.5px; color:var(--off-dim); padding:6px 0; font-family:'Space Mono',monospace;}
+  .bill .row.total{color:var(--off); font-weight:700; font-size:16px; border-top:1px dashed #3a382d; margin-top:8px; padding-top:14px;}
+  .bill .row.total span:last-child{color:var(--turmeric);}
+
+  /* ---------- Checkout form ---------- */
+  h2.section-h{font-size:20px; margin-bottom:4px;}
+  p.section-sub{font-size:13px; color:var(--off-dim); margin-bottom:22px;}
+  .field{margin-bottom:16px;}
+  .field label{display:block; font-size:11.5px; text-transform:uppercase; letter-spacing:0.08em; color:var(--off-dim); margin-bottom:7px; font-family:'Space Mono',monospace;}
+  .field input, .field textarea{
+    width:100%; background:var(--steel); border:1.5px solid #3a382d; color:var(--off);
+    padding:13px 14px; border-radius:10px; font-size:14.5px; font-family:inherit;
+    outline:none; transition:border-color .15s ease;
+  }
+  .field input:focus, .field textarea:focus{border-color:var(--turmeric);}
+  .field textarea{resize:vertical; min-height:70px;}
+  .field-row{display:flex; gap:12px;}
+  .field-row .field{flex:1;}
+  .err{color:var(--chili); font-size:11.5px; margin-top:6px; display:none; font-family:'Space Mono',monospace;}
+
+  .locbtn{
+    width:100%; display:flex; align-items:center; justify-content:center; gap:9px;
+    background:var(--steel); border:1.5px dashed var(--turmeric-dim); color:var(--turmeric);
+    padding:13px; border-radius:10px; font-size:13.5px; font-weight:700; cursor:pointer;
+    font-family:inherit; margin-bottom:16px; transition:all .15s ease;
+  }
+  .locbtn:active{transform:scale(0.98);}
+  .locbtn.loading{color:var(--off-dim); border-color:#4c4a3e; cursor:wait;}
+  .locbtn.done{color:#7ec37e; border-color:#3f5c3f; border-style:solid;}
+  .locbtn .spin{display:inline-block; animation:spin 0.8s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+
+  /* ---------- Payment view ---------- */
+  .pay-card{background:var(--steel); border:1px solid #3a382d; border-radius:var(--radius); padding:20px; margin-bottom:16px;}
+  .pay-opt{
+    display:flex; align-items:center; gap:14px; padding:16px; border:1.5px solid #3a382d; border-radius:12px;
+    margin-bottom:12px; cursor:pointer; transition:border-color .15s ease;
+  }
+  .pay-opt.selected{border-color:var(--turmeric); background:rgba(232,163,61,0.06);}
+  .pay-opt .logo{
+    width:42px; height:42px; border-radius:10px; display:flex; align-items:center; justify-content:center;
+    font-family:'Archivo Black',sans-serif; font-size:11px; flex-shrink:0;
+  }
+  .pay-opt .logo.phonepe{background:#5f259f; color:#fff;}
+  .pay-opt .logo.razorpay{background:#0c2451; color:#3395ff;}
+  .pay-opt .txt{flex:1;}
+  .pay-opt .txt .t1{font-size:14.5px; font-weight:600;}
+  .pay-opt .txt .t2{font-size:11.5px; color:var(--off-dim); margin-top:2px;}
+  .pay-opt .radio{width:18px; height:18px; border-radius:50%; border:2px solid #4c4a3e; flex-shrink:0;}
+  .pay-opt.selected .radio{border-color:var(--turmeric); background:radial-gradient(var(--turmeric) 0 40%, transparent 44%);}
+  .pay-opt.disabled{cursor:not-allowed; opacity:0.45; filter:grayscale(0.4);}
+  .soon-tag{
+    display:inline-block; font-family:'Space Mono',monospace; font-size:9px; font-weight:700;
+    color:var(--off-dim); background:#3a382d; padding:2px 7px; border-radius:8px;
+    letter-spacing:0.05em; text-transform:uppercase; margin-left:6px; vertical-align:middle;
+  }
+
+  .loading-wrap{display:none; flex-direction:column; align-items:center; padding:50px 20px; text-align:center;}
+  .loading-wrap.show{display:flex;}
+  .stack{display:flex; flex-direction:column-reverse; gap:4px; margin-bottom:22px; height:70px; justify-content:flex-end;}
+  .stack .tin-b{width:56px; height:14px; border-radius:6px; background:var(--turmeric); opacity:0; animation:pop .5s ease forwards;}
+  .stack .tin-b:nth-child(1){animation-delay:.05s;}
+  .stack .tin-b:nth-child(2){animation-delay:.25s;}
+  .stack .tin-b:nth-child(3){animation-delay:.45s;}
+  @keyframes pop{from{opacity:0; transform:translateY(8px) scaleX(0.8);} to{opacity:1; transform:none;}}
+  .loading-wrap .lt{font-size:14.5px; font-weight:600; margin-bottom:6px;}
+  .loading-wrap .ls{font-size:12.5px; color:var(--off-dim); font-family:'Space Mono',monospace;}
+
+  .note{
+    background:var(--steel); border:1px dashed #4c4a3e; border-radius:10px; padding:12px 14px;
+    font-size:11.5px; color:var(--off-dim); line-height:1.5; margin-top:18px; font-family:'Space Mono',monospace;
+  }
+  .note b{color:var(--off);}
+
+  /* ---------- Confirmation / ticket ---------- */
+  .ticket{
+    background:var(--paper); color:var(--ink); border-radius:10px; padding:24px 22px;
+    position:relative; margin-top:8px;
+    -webkit-mask-image: radial-gradient(circle 5px at 0 50%, transparent 5px, black 5.5px), radial-gradient(circle 5px at 100% 50%, transparent 5px, black 5.5px);
+    -webkit-mask-composite: destination-out;
+    mask-composite: intersect;
+  }
+  .ticket::before{
+    content:''; position:absolute; top:0; bottom:0; left:0; width:0;
+  }
+  .ticket .perf{border-top:2px dashed #b7ae94; margin:16px 0;}
+  .ticket .th{text-align:center; margin-bottom:6px;}
+  .ticket .th .ok{
+    width:44px; height:44px; border-radius:50%; background:#4c9a4c; color:#fff;
+    display:flex; align-items:center; justify-content:center; font-size:22px; margin:0 auto 12px;
+  }
+  .ticket .th .t1{font-family:'Archivo Black',sans-serif; font-size:18px;}
+  .ticket .th .t2{font-family:'Space Mono',monospace; font-size:11.5px; color:#6b6552; margin-top:4px;}
+  .ticket .kv{display:flex; justify-content:space-between; font-size:12.5px; padding:4px 0; font-family:'Space Mono',monospace; color:#4a4636;}
+  .ticket .kv b{color:var(--ink);}
+  .ticket .items-mini .row{display:flex; justify-content:space-between; font-size:12.5px; padding:5px 0; font-family:'Space Mono',monospace;}
+  .ticket .items-mini .row span:first-child{color:#4a4636;}
+  .ticket .totrow{display:flex; justify-content:space-between; font-family:'Archivo Black',sans-serif; font-size:16px; margin-top:10px;}
+  .eta-strip{
+    display:flex; align-items:center; gap:10px; background:var(--steel); border:1px solid #3a382d;
+    border-radius:12px; padding:14px 16px; margin:20px 0;
+  }
+  .eta-strip .icon{font-size:22px;}
+  .eta-strip .t1{font-size:13.5px; font-weight:700;}
+  .eta-strip .t2{font-size:11.5px; color:var(--off-dim); font-family:'Space Mono',monospace;}
+
+  .order-track{background:var(--steel); border:1px solid #3a382d; border-radius:var(--radius); padding:20px 20px 16px; margin-bottom:16px;}
+  .ot-title{font-size:12px; text-transform:uppercase; letter-spacing:0.12em; color:var(--off-dim); font-family:'Space Mono',monospace; margin-bottom:16px;}
+  .ot-step{display:flex; gap:14px; position:relative; padding-bottom:22px;}
+  .ot-step:last-child{padding-bottom:0;}
+  .ot-line{position:absolute; left:11px; top:24px; bottom:-4px; width:2px; background:#3a382d;}
+  .ot-step.done .ot-line{background:var(--turmeric-dim);}
+  .ot-dot{
+    width:24px; height:24px; border-radius:50%; background:var(--ink); border:2px solid #4c4a3e;
+    color:transparent; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700;
+    flex-shrink:0; z-index:1; transition:all .3s ease;
+  }
+  .ot-step.done .ot-dot{background:var(--turmeric); border-color:var(--turmeric); color:var(--ink);}
+  .ot-step.active .ot-dot{border-color:var(--turmeric); box-shadow:0 0 0 4px rgba(232,163,61,0.18);}
+  .ot-body .ot-nm{font-size:13.5px; font-weight:600; color:var(--off-dim);}
+  .ot-step.done .ot-body .ot-nm, .ot-step.active .ot-body .ot-nm{color:var(--off);}
+  .ot-body .ot-time{font-size:11px; color:#6b6858; font-family:'Space Mono',monospace; margin-top:3px;}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <header class="top">
+    <svg class="tin-mark" viewBox="0 0 40 40" fill="none">
+      <path d="M22 2 L8 22 H18 L15 38 L33 15 H22 L26 2 Z" fill="#ea1d25" stroke="#ffc72c" stroke-width="1.5" stroke-linejoin="round"/>
+    </svg>
+    <div class="brand">
+      <span class="name display">ZINGO</span>
+      <span class="tag">Taste can't wait · Barasat</span>
+    </div>
+  </header>
+
+  <nav class="tracker" id="tracker">
+    <div class="step" data-step="menu"><div class="line"></div><div class="tin"></div><div class="lbl">Menu</div></div>
+    <div class="step" data-step="cart"><div class="line"></div><div class="tin"></div><div class="lbl">Cart</div></div>
+    <div class="step" data-step="checkout"><div class="line"></div><div class="tin"></div><div class="lbl">Details</div></div>
+    <div class="step" data-step="payment"><div class="line"></div><div class="tin"></div><div class="lbl">Pay</div></div>
+    <div class="step" data-step="confirm"><div class="line"></div><div class="tin"></div><div class="lbl">Confirmed</div></div>
+  </nav>
+
+  <a href="#" id="wa-float" class="wa-float" target="_blank" rel="noopener" aria-label="Chat on WhatsApp">
+    <svg viewBox="0 0 32 32" width="26" height="26" fill="#fff"><path d="M16 3C9.4 3 4 8.4 4 15c0 2.4.7 4.6 1.9 6.5L4 29l7.7-1.8C13.4 28 14.7 28.3 16 28.3c6.6 0 12-5.4 12-12S22.6 3 16 3zm0 22c-1.2 0-2.4-.3-3.5-.8l-.3-.1-4.6 1.1 1.1-4.4-.2-.3C7.5 19 7 17 7 15c0-5 4-9 9-9s9 4 9 9-4 9-9 9zm4.9-6.7c-.3-.1-1.6-.8-1.8-.9-.2-.1-.4-.1-.6.1s-.7.9-.9 1.1-.3.2-.6.1c-.3-.1-1.3-.5-2.4-1.5-.9-.8-1.5-1.8-1.6-2.1-.2-.3 0-.5.1-.6.1-.1.3-.3.4-.5.1-.1.2-.3.2-.4.1-.1 0-.3 0-.4 0-.1-.6-1.4-.8-1.9-.2-.5-.4-.4-.6-.4h-.5c-.2 0-.5.1-.7.3-.2.3-.9.9-.9 2.2s.9 2.6 1.1 2.8c.1.1 1.9 2.9 4.5 4 .6.3 1.1.4 1.5.6.6.2 1.2.2 1.6.1.5-.1 1.6-.6 1.8-1.3.2-.6.2-1.1.2-1.3-.1-.1-.3-.2-.5-.3z"/></svg>
+  </a>
+
+  <main>
+
+    <!-- ============ VIEW 1: MENU (landing page) ============ -->
+    <section class="view" id="view-menu">
+      <div class="hero">
+        <div class="eyebrow">Scan · Order · Zing</div>
+        <h1 class="display">Loaded, cheesy,<br>fired up fast.</h1>
+        <p>Pocket pizzas, crunch burgers &amp; boba — packed hot and sent straight to your door. Taste can't wait.</p>
+      </div>
+
+      <div class="best-strip" id="best-strip"></div>
+
+      <div id="menu-list"></div>
+
+      <button class="cartbar" id="cartbar" onclick="goTo('cart')">
+        <div class="l">🍱 <span id="cartbar-count">0</span> items<small id="cartbar-names">—</small></div>
+        <div class="r">₹<span id="cartbar-total">0</span> · View cart →</div>
+      </button>
+    </section>
+
+    <!-- ============ VIEW 2: CART ============ -->
+    <section class="view" id="view-cart">
+      <h2 class="section-h">Your cart</h2>
+      <p class="section-sub">Review your order before checkout.</p>
+      <div id="cart-list"></div>
+      <div id="cart-empty" class="empty-cart" style="display:none;">
+        <svg class="tin-mark" viewBox="0 0 40 40" fill="none"><path d="M22 2 L8 22 H18 L15 38 L33 15 H22 L26 2 Z" fill="#4a4636" stroke="#6b6552" stroke-width="1.5" stroke-linejoin="round"/></svg>
+        <p>Your cart is empty. Add something from the menu to get started.</p>
+        <button class="btn-primary" style="width:auto; padding:12px 24px;" onclick="goTo('menu')">Browse menu</button>
+      </div>
+      <div id="cart-bill-wrap" style="display:none;">
+        <div class="bill">
+          <div class="row"><span>Item total</span><span id="bill-sub">₹0</span></div>
+          <div class="row"><span>Delivery fee</span><span id="bill-delivery">₹0</span></div>
+          <div class="row"><span>Packaging</span><span id="bill-pack">₹0</span></div>
+          <div class="row total"><span>To pay</span><span id="bill-total">₹0</span></div>
+        </div>
+        <button class="btn-primary" style="margin-top:18px;" onclick="goTo('checkout')">Proceed to details</button>
+        <button class="btn-ghost" onclick="goTo('menu')">Add more items</button>
+      </div>
+    </section>
+
+    <!-- ============ VIEW 3: CHECKOUT ============ -->
+    <section class="view" id="view-checkout">
+      <h2 class="section-h">Delivery details</h2>
+      <p class="section-sub">Where should we send your order?</p>
+
+      <div class="field">
+        <label>Full name</label>
+        <input type="text" id="cf-name" placeholder="e.g. Aditi Sharma">
+      </div>
+      <div class="field">
+        <label>Phone number</label>
+        <input type="tel" id="cf-phone" placeholder="10-digit mobile number" maxlength="10">
+      </div>
+      <button type="button" class="locbtn" id="loc-btn" onclick="useCurrentLocation()">
+        <span id="loc-icon">📍</span> <span id="loc-label">Use current location</span>
+      </button>
+      <div class="err" id="loc-err" style="display:none;">Couldn't get your location. You can allow location access or type your address below.</div>
+
+      <div class="field">
+        <label>Delivery address</label>
+        <textarea id="cf-address" placeholder="Flat / house no., street, landmark"></textarea>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>Locality / area</label>
+          <input type="text" id="cf-area" placeholder="e.g. Indiranagar">
+        </div>
+        <div class="field">
+          <label>Pincode</label>
+          <input type="text" id="cf-pin" placeholder="560038" maxlength="6">
+        </div>
+      </div>
+      <div class="err" id="cf-err">Please fill in your name, phone, address and pincode correctly.</div>
+
+      <button class="btn-primary" style="margin-top:8px;" onclick="submitCheckout()">Continue to payment</button>
+      <button class="btn-ghost" onclick="goTo('cart')">Back to cart</button>
+    </section>
+
+    <!-- ============ VIEW 4: PAYMENT ============ -->
+    <section class="view" id="view-payment">
+      <div id="payment-select">
+        <h2 class="section-h">Payment</h2>
+        <p class="section-sub">Choose how you'd like to pay.</p>
+
+        <div class="pay-opt disabled" data-method="phonepe">
+          <div class="logo phonepe">Pe</div>
+          <div class="txt"><div class="t1">PhonePe <span class="soon-tag">Coming soon</span></div><div class="t2">UPI, cards, wallet &amp; more</div></div>
+          <div class="radio"></div>
+        </div>
+        <div class="pay-opt disabled" data-method="razorpay">
+          <div class="logo razorpay">RP</div>
+          <div class="txt"><div class="t1">Razorpay <span class="soon-tag">Coming soon</span></div><div class="t2">Cards, UPI, netbanking</div></div>
+          <div class="radio"></div>
+        </div>
+        <div class="pay-opt selected" data-method="whatsapp" onclick="selectPay('whatsapp')">
+          <div class="logo" style="background:#25D366; color:#fff;">
+            <svg viewBox="0 0 32 32" width="20" height="20" fill="#fff"><path d="M16 3C9.4 3 4 8.4 4 15c0 2.4.7 4.6 1.9 6.5L4 29l7.7-1.8C13.4 28 14.7 28.3 16 28.3c6.6 0 12-5.4 12-12S22.6 3 16 3zm0 22c-1.2 0-2.4-.3-3.5-.8l-.3-.1-4.6 1.1 1.1-4.4-.2-.3C7.5 19 7 17 7 15c0-5 4-9 9-9s9 4 9 9-4 9-9 9z"/></svg>
+          </div>
+          <div class="txt"><div class="t1">Order via WhatsApp</div><div class="t2">Send order &amp; pay on delivery</div></div>
+          <div class="radio"></div>
+        </div>
+
+        <div class="bill" style="margin-top:20px;">
+          <div class="row total" style="margin-top:0; border-top:none; padding-top:0;"><span>Amount to pay</span><span id="pay-amount">₹0</span></div>
+        </div>
+
+        <button class="btn-primary" id="pay-btn" style="margin-top:18px;" onclick="startPayment()">Send order on WhatsApp</button>
+        <button class="btn-ghost" onclick="goTo('checkout')">Back</button>
+
+        <div class="note">
+          <b>Note for the developer:</b> this button currently simulates a gateway redirect. A real integration creates the order + payment session on your <b>backend</b> (PhonePe / Razorpay secret keys must never sit in this HTML), redirects the user to the gateway, then verifies payment status server-side via webhook before confirming the order. See comments in the &lt;script&gt; tag.
+        </div>
+      </div>
+
+      <div class="loading-wrap" id="payment-loading">
+        <div class="stack"><div class="tin-b"></div><div class="tin-b"></div><div class="tin-b"></div></div>
+        <div class="lt" id="pl-title">Redirecting to PhonePe…</div>
+        <div class="ls" id="pl-sub">Do not close this window</div>
+      </div>
+
+      <div class="loading-wrap" id="wa-wait">
+        <div style="width:64px; height:64px; border-radius:50%; background:#25D366; display:flex; align-items:center; justify-content:center; margin-bottom:18px;">
+          <svg viewBox="0 0 32 32" width="30" height="30" fill="#fff"><path d="M16 3C9.4 3 4 8.4 4 15c0 2.4.7 4.6 1.9 6.5L4 29l7.7-1.8C13.4 28 14.7 28.3 16 28.3c6.6 0 12-5.4 12-12S22.6 3 16 3zm0 22c-1.2 0-2.4-.3-3.5-.8l-.3-.1-4.6 1.1 1.1-4.4-.2-.3C7.5 19 7 17 7 15c0-5 4-9 9-9s9 4 9 9-4 9-9 9z"/></svg>
+        </div>
+        <div class="lt">We've opened WhatsApp for you</div>
+        <div class="ls" style="max-width:26ch; line-height:1.5; margin-bottom:22px;">Send the order message, then wait for our reply confirming your total &amp; payment. Once that's done, tap below.</div>
+        <button class="btn-primary" onclick="completeOrder()">I've confirmed on WhatsApp</button>
+        <button class="btn-ghost" onclick="cancelWaWait()">Go back</button>
+      </div>
+    </section>
+
+    <!-- ============ VIEW 5: CONFIRMATION ============ -->
+    <section class="view" id="view-confirm">
+      <div class="ticket">
+        <div class="th">
+          <div class="ok">✓</div>
+          <div class="t1">ORDER CONFIRMED</div>
+          <div class="t2" id="tk-id">#ZNG-000000</div>
+        </div>
+        <div class="perf"></div>
+        <div class="kv"><span>Name</span><b id="tk-name">—</b></div>
+        <div class="kv"><span>Deliver to</span><b id="tk-addr">—</b></div>
+        <div class="kv"><span>Paid via</span><b id="tk-method">—</b></div>
+        <div class="perf"></div>
+        <div class="items-mini" id="tk-items"></div>
+        <div class="totrow"><span>TOTAL</span><span id="tk-total">₹0</span></div>
+      </div>
+
+      <div class="eta-strip">
+        <div class="icon">⏱️</div>
+        <div>
+          <div class="t1" id="eta-title">Arriving in ~35–40 mins</div>
+          <div class="t2">Packed fresh &amp; sealed at our kitchen</div>
+        </div>
+      </div>
+
+      <div class="order-track" id="order-track">
+        <div class="ot-title">Order status</div>
+        <div class="ot-step" data-stage="placed">
+          <div class="ot-line"></div>
+          <div class="ot-dot">✓</div>
+          <div class="ot-body"><div class="ot-nm">Order placed</div><div class="ot-time" id="ot-time-placed">—</div></div>
+        </div>
+        <div class="ot-step" data-stage="preparing">
+          <div class="ot-line"></div>
+          <div class="ot-dot">✓</div>
+          <div class="ot-body"><div class="ot-nm">Preparing in the kitchen</div><div class="ot-time" id="ot-time-preparing">—</div></div>
+        </div>
+        <div class="ot-step" data-stage="out">
+          <div class="ot-line"></div>
+          <div class="ot-dot">✓</div>
+          <div class="ot-body"><div class="ot-nm">Out for delivery</div><div class="ot-time" id="ot-time-out">—</div></div>
+        </div>
+        <div class="ot-step" data-stage="delivered">
+          <div class="ot-dot">✓</div>
+          <div class="ot-body"><div class="ot-nm">Delivered</div><div class="ot-time" id="ot-time-delivered">—</div></div>
+        </div>
+      </div>
+
+      <button class="btn-primary" onclick="newOrder()">Place another order</button>
+    </section>
+
+  </main>
+
+  <footer style="padding:22px 20px 8px; text-align:center; border-top:1px solid #302f27; margin-top:10px;">
+    <div style="font-size:11.5px; color:var(--off-dim); font-family:'Space Mono',monospace;">📍 Noapara, Barasat, Kol-124 (Lali Cinema)</div>
+    <div style="font-size:10px; color:#6b6858; font-family:'Space Mono',monospace; margin-top:6px;">FSSAI Lic. No. 22826130000506</div>
+  </footer>
+</div>
+
+<script>
+/* ============================================================
+   MENU DATA — edit this to match your real kitchen's menu.
+   ============================================================ */
+const MENU = [
+  // Appetizers
+  { id:'a1', cat:'Appetizers', veg:true,  nm:'French Fries Salted', ds:'Classic salted fries', pr:69 },
+  { id:'a2', cat:'Appetizers', veg:true,  nm:'Firecracker Peri Fries', ds:'Peri-peri tossed crunch fries', pr:79 },
+  { id:'a3', cat:'Appetizers', veg:false, nm:'Chicken Nuggets (5 pc)', ds:'Golden fried chicken nuggets', pr:89 },
+  { id:'a4', cat:'Appetizers', veg:false, nm:'Chicken Finger (5 pc)', ds:'Crispy chicken fingers', pr:99 },
+  { id:'a5', cat:'Appetizers', veg:false, nm:'Chicken Cheese Bombs (4 pc)', ds:'Cheese-stuffed chicken bombs', pr:99 },
+  { id:'a6', cat:'Appetizers', veg:true,  nm:'Cheese Golden Corn (5 pc)', ds:'Crispy cheese-corn bites', pr:89 },
+  { id:'a7', cat:'Appetizers', veg:true,  nm:'Cheese Bomb Pops (5 pc)', ds:'Molten cheese pops', pr:89 },
+  { id:'a8', cat:'Appetizers', veg:true,  nm:'Cheese Volcano Fries', ds:'Fries erupting with molten cheese', pr:99, best:true },
+
+  // Pocket Pizza
+  { id:'p1', cat:'Pocket Pizza', veg:false, nm:'K-Town Chicken Pocket', ds:'Korean-style chicken pocket pizza', pr:99 },
+  { id:'p2', cat:'Pocket Pizza', veg:false, nm:'Smoky Sausage Pocket', ds:'Smoked sausage & melted cheese', pr:99 },
+  { id:'p3', cat:'Pocket Pizza', veg:true,  nm:'Tandoori Paneer Pocket', ds:'Tandoori spiced paneer pocket', pr:99 },
+  { id:'p4', cat:'Pocket Pizza', veg:true,  nm:'The Garden Crunch Pocket', ds:'Loaded veggie pocket pizza', pr:89 },
+  { id:'p5', cat:'Pocket Pizza', veg:true,  nm:'Triple Cheese Lava Pocket', ds:'Three-cheese molten pocket', pr:99 },
+  { id:'p6', cat:'Pocket Pizza', veg:false, nm:'Chicken Tikka Pocket Pizza', ds:'Chicken tikka stuffed pocket pizza', pr:99, best:true },
+
+  // Burger & Sandwich
+  { id:'b1', cat:'Burger & Sandwich', veg:false, nm:'K-Town Crunch Burger', ds:'Korean-style crispy chicken burger', pr:99, best:true },
+  { id:'b2', cat:'Burger & Sandwich', veg:false, nm:'The Crunch Boss Burger', ds:'Loaded crunchy chicken burger', pr:89 },
+  { id:'b3', cat:'Burger & Sandwich', veg:true,  nm:'Desi Aloo Tikki Burger', ds:'Classic spiced aloo tikki burger', pr:59 },
+  { id:'b4', cat:'Burger & Sandwich', veg:true,  nm:'The Garden Crunch Burger', ds:'Fresh veggie crunch burger', pr:69 },
+  { id:'b5', cat:'Burger & Sandwich', veg:false, nm:'Chicken Tikka Sandwich', ds:'Grilled chicken tikka sandwich', pr:99 },
+  { id:'b6', cat:'Burger & Sandwich', veg:true,  nm:'Paneer Melt Sandwich', ds:'Melted cheese & paneer sandwich', pr:89 },
+  { id:'b7', cat:'Burger & Sandwich', veg:true,  nm:'Street-Style Spiced Aloo Toasty', ds:'Toasted spiced potato sandwich', pr:79 },
+  { id:'b8', cat:'Burger & Sandwich', veg:true,  nm:'Cheesy Veg Melt', ds:'Loaded veg & cheese melt', pr:69 },
+
+  // Beverages
+  { id:'d1', cat:'Beverages', veg:true, nm:'The Original Milk Boba', ds:'Classic milk tea with boba pearls', pr:99 },
+  { id:'d2', cat:'Beverages', veg:true, nm:'Strawberry Boba Tea', ds:'Strawberry-flavoured boba tea', pr:99 },
+  { id:'d3', cat:'Beverages', veg:true, nm:'Tropical Mango Burst Boba', ds:'Mango boba tea', pr:99 },
+  { id:'d4', cat:'Beverages', veg:true, nm:'Zingo Classic Cold Coffee', ds:'House cold coffee', pr:79 },
+  { id:'d5', cat:'Beverages', veg:true, nm:'Caramel Bliss Cold Coffee', ds:'Cold coffee with caramel drizzle', pr:89 },
+  { id:'d6', cat:'Beverages', veg:true, nm:'Choco Blast Cold Coffee', ds:'Chocolate loaded cold coffee', pr:99, best:true },
+  { id:'d7', cat:'Beverages', veg:true, nm:'Velvet Taro Dream Boba', ds:'Creamy taro boba tea', pr:99, best:true },
+
+  // Add-ons
+  { id:'x1', cat:'Add-ons', veg:true, nm:'Boba Pearls', ds:'Extra topping', pr:19 },
+  { id:'x2', cat:'Add-ons', veg:true, nm:'Cheese Slice', ds:'Extra topping', pr:15 },
+  { id:'x3', cat:'Add-ons', veg:true, nm:'Mozzarella Cheese', ds:'Extra topping', pr:29 },
+];
+
+const DELIVERY_FEE = 35;
+const PACKAGING_FEE = 15;
+const WA_NUMBER = '917477444755';
+
+let cart = {}; // { itemId: qty }
+let customer = {};
+let chosenMethod = 'whatsapp';
+let lastOrder = null;
+let pendingOrder = null;
+
+/* Paste your deployed Google Apps Script Web App URL here (ends in /exec).
+   Leave as-is and order logging is silently skipped — nothing breaks. */
+const ORDERS_API_URL = 'PASTE_YOUR_APPS_SCRIPT_URL_HERE';
+
+function buildOrderObject(method){
+  const sub = cartSubtotal();
+  const total = sub + DELIVERY_FEE + PACKAGING_FEE;
+  return {
+    id: 'ZNG-' + Math.floor(100000 + Math.random()*899999),
+    items: Object.entries(cart).map(([id,qty])=>({item:MENU.find(m=>m.id===id), qty})),
+    total, customer: {...customer}, method
+  };
+}
+
+function logOrder(order, status){
+  if(!ORDERS_API_URL || ORDERS_API_URL.includes('PASTE_YOUR')) return; // not set up yet
+  const payload = {
+    id: order.id,
+    status: status,
+    name: order.customer.name || '',
+    phone: order.customer.phone || '',
+    address: `${order.customer.address||''}, ${order.customer.area||''} - ${order.customer.pin||''}`,
+    items: order.items.map(i=>`${i.item.nm} x${i.qty}`).join(', '),
+    total: order.total,
+    method: order.method,
+  };
+  fetch(ORDERS_API_URL, {
+    method:'POST',
+    headers: {'Content-Type':'text/plain;charset=utf-8'}, // avoids CORS preflight on Apps Script
+    body: JSON.stringify(payload)
+  }).catch(()=>{}); // never block the customer's flow if this fails
+}
+
+/* ---------------- render menu ---------------- */
+function renderMenu(){
+  const cats = [...new Set(MENU.map(i=>i.cat))];
+  const list = document.getElementById('menu-list');
+  list.innerHTML = cats.map(cat => `
+    <div class="cat-title">${cat}</div>
+    ${MENU.filter(i=>i.cat===cat).map(item => `
+      <div class="item" id="item-${item.id}">
+        <div class="veg ${item.veg?'':'non'}"></div>
+        <div class="info">
+          <div class="nm">${item.nm}${item.best ? '<span class="badge-best">🔥 Best seller</span>' : ''}</div>
+          <div class="ds">${item.ds}</div>
+          <div class="pr">₹${item.pr}</div>
+        </div>
+        <div id="ctrl-${item.id}">${controlHtml(item.id)}</div>
+      </div>
+    `).join('')}
+  `).join('');
+
+  const bestItems = MENU.filter(i=>i.best);
+  document.getElementById('best-strip').innerHTML = bestItems.length ? `
+    <div class="best-label">🔥 Best Sellers</div>
+  ` : '';
+  if(bestItems.length){
+    document.getElementById('best-strip').innerHTML =
+      `<div style="width:100%; margin-bottom:2px;"><div class="best-label">🔥 Best Sellers</div></div>` +
+      `<div style="display:flex; gap:10px; overflow-x:auto; width:100%;">` +
+      bestItems.map(item => `
+        <div class="best-card" onclick="jumpToItem('${item.id}')">
+          <div class="nm">${item.nm}</div>
+          <div class="pr">₹${item.pr}</div>
+        </div>
+      `).join('') + `</div>`;
+  }
+}
+
+function jumpToItem(id){
+  const el = document.getElementById('item-'+id);
+  if(!el) return;
+  el.scrollIntoView({behavior:'smooth', block:'center'});
+  el.classList.add('highlight');
+  setTimeout(()=>el.classList.remove('highlight'), 1400);
+}
+
+function controlHtml(id){
+  const qty = cart[id] || 0;
+  if(qty === 0){
+    return `<button class="addbtn" onclick="addItem('${id}')">ADD</button>`;
+  }
+  return `<div class="qty-ctrl">
+    <button onclick="decItem('${id}')">−</button>
+    <span>${qty}</span>
+    <button onclick="addItem('${id}')">+</button>
+  </div>`;
+}
+
+function addItem(id){
+  cart[id] = (cart[id]||0) + 1;
+  document.getElementById('ctrl-'+id).innerHTML = controlHtml(id);
+  updateCartbar();
+}
+function decItem(id){
+  if(!cart[id]) return;
+  cart[id] -= 1;
+  if(cart[id] <= 0) delete cart[id];
+  const ctrl = document.getElementById('ctrl-'+id);
+  if(ctrl) ctrl.innerHTML = controlHtml(id);
+  updateCartbar();
+}
+
+function cartCount(){ return Object.values(cart).reduce((a,b)=>a+b,0); }
+function cartSubtotal(){
+  return Object.entries(cart).reduce((sum,[id,qty])=>{
+    const item = MENU.find(m=>m.id===id);
+    return sum + (item ? item.pr*qty : 0);
+  },0);
+}
+
+function updateCartbar(){
+  updateWaFloat();
+  const count = cartCount();
+  const bar = document.getElementById('cartbar');
+  if(count>0){
+    bar.classList.add('show');
+    document.getElementById('cartbar-count').textContent = count;
+    document.getElementById('cartbar-total').textContent = cartSubtotal();
+    const names = Object.keys(cart).map(id=>MENU.find(m=>m.id===id).nm).join(', ');
+    document.getElementById('cartbar-names').textContent = names.length>34 ? names.slice(0,34)+'…' : names;
+  } else {
+    bar.classList.remove('show');
+  }
+}
+
+/* ---------------- render cart view ---------------- */
+function renderCart(){
+  const ids = Object.keys(cart);
+  const listEl = document.getElementById('cart-list');
+  const emptyEl = document.getElementById('cart-empty');
+  const billWrap = document.getElementById('cart-bill-wrap');
+
+  if(ids.length === 0){
+    listEl.innerHTML = '';
+    emptyEl.style.display = 'block';
+    billWrap.style.display = 'none';
+    return;
+  }
+  emptyEl.style.display = 'none';
+  billWrap.style.display = 'block';
+
+  listEl.innerHTML = ids.map(id=>{
+    const item = MENU.find(m=>m.id===id);
+    const qty = cart[id];
+    return `<div class="cart-row">
+      <div class="nm">${item.nm}<small>₹${item.pr} each</small></div>
+      <div class="qty-ctrl">
+        <button onclick="decItem('${id}'); renderCart();">−</button>
+        <span>${qty}</span>
+        <button onclick="addItem('${id}'); renderCart();">+</button>
+      </div>
+      <div class="line-pr">₹${item.pr*qty}</div>
+    </div>`;
+  }).join('');
+
+  const sub = cartSubtotal();
+  const total = sub + DELIVERY_FEE + PACKAGING_FEE;
+  document.getElementById('bill-sub').textContent = '₹'+sub;
+  document.getElementById('bill-delivery').textContent = '₹'+DELIVERY_FEE;
+  document.getElementById('bill-pack').textContent = '₹'+PACKAGING_FEE;
+  document.getElementById('bill-total').textContent = '₹'+total;
+}
+
+/* ---------------- current location ---------------- */
+function useCurrentLocation(){
+  const btn = document.getElementById('loc-btn');
+  const icon = document.getElementById('loc-icon');
+  const label = document.getElementById('loc-label');
+  const errEl = document.getElementById('loc-err');
+  errEl.style.display = 'none';
+
+  if(!navigator.geolocation){
+    errEl.textContent = "Your browser doesn't support location access. Please type your address below.";
+    errEl.style.display = 'block';
+    return;
+  }
+
+  btn.classList.add('loading');
+  icon.innerHTML = '<span class="spin">⟳</span>';
+  label.textContent = 'Locating you…';
+
+  navigator.geolocation.getCurrentPosition(
+    async (pos) => {
+      const { latitude, longitude } = pos.coords;
+      try {
+        label.textContent = 'Fetching address…';
+        /* Free reverse-geocoding lookup (OpenStreetMap Nominatim, no API key).
+           For production, swap this for Google Maps Geocoding API or
+           MapmyIndia — both give more reliable results in India and
+           support proper usage limits/keys. */
+        const res = await fetch(
+          `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}`,
+          { headers: { 'Accept': 'application/json' } }
+        );
+        const data = await res.json();
+        const a = data.address || {};
+
+        const line = [a.house_number, a.road, a.suburb].filter(Boolean).join(', ');
+        const area = a.suburb || a.neighbourhood || a.city_district || a.city || a.town || '';
+        const pin = a.postcode || '';
+
+        if(line) document.getElementById('cf-address').value = line;
+        if(area) document.getElementById('cf-area').value = area;
+        if(pin) document.getElementById('cf-pin').value = pin;
+
+        btn.classList.remove('loading');
+        btn.classList.add('done');
+        icon.textContent = '✓';
+        label.textContent = 'Location added — check it below';
+      } catch (e) {
+        btn.classList.remove('loading');
+        icon.textContent = '📍';
+        label.textContent = 'Use current location';
+        errEl.textContent = "Found your location but couldn't fetch the address. Please fill it in manually.";
+        errEl.style.display = 'block';
+      }
+    },
+    (error) => {
+      btn.classList.remove('loading');
+      icon.textContent = '📍';
+      label.textContent = 'Use current location';
+      errEl.textContent = error.code === error.PERMISSION_DENIED
+        ? 'Location access was denied. You can type your address below instead.'
+        : "Couldn't get your location. You can type your address below instead.";
+      errEl.style.display = 'block';
+    },
+    { enableHighAccuracy:true, timeout:10000 }
+  );
+}
+
+/* ---------------- checkout ---------------- */
+function submitCheckout(){
+  const name = document.getElementById('cf-name').value.trim();
+  const phone = document.getElementById('cf-phone').value.trim();
+  const address = document.getElementById('cf-address').value.trim();
+  const area = document.getElementById('cf-area').value.trim();
+  const pin = document.getElementById('cf-pin').value.trim();
+  const err = document.getElementById('cf-err');
+
+  const phoneOk = /^\d{10}$/.test(phone);
+  const pinOk = /^\d{6}$/.test(pin);
+
+  if(!name || !phoneOk || !address || !area || !pinOk){
+    err.style.display = 'block';
+    return;
+  }
+  err.style.display = 'none';
+  customer = { name, phone, address, area, pin };
+  document.getElementById('pay-amount').textContent = '₹' + (cartSubtotal()+DELIVERY_FEE+PACKAGING_FEE);
+  goTo('payment');
+}
+
+/* ---------------- payment ---------------- */
+function selectPay(method){
+  chosenMethod = method;
+  document.querySelectorAll('.pay-opt').forEach(el=>{
+    el.classList.toggle('selected', el.dataset.method === method);
+  });
+  const btn = document.getElementById('pay-btn');
+  btn.textContent = method === 'whatsapp' ? 'Send order on WhatsApp' : 'Pay now';
+}
+
+function buildWaMessage(order){
+  const lines = order.items.map(({item,qty}) => `• ${item.nm} x${qty} — ₹${item.pr*qty}`).join('\n');
+  const c = order.customer;
+  return `Hi Zingo! I'd like to order (${order.id}):\n\n${lines}\n\nDelivery: ₹${DELIVERY_FEE}  Packaging: ₹${PACKAGING_FEE}\nTotal: ₹${order.total}\n\nName: ${c.name || ''}\nPhone: ${c.phone || ''}\nAddress: ${c.address || ''}, ${c.area || ''} - ${c.pin || ''}`;
+}
+
+function startPayment(){
+  if(chosenMethod === 'whatsapp'){
+    pendingOrder = buildOrderObject('whatsapp');
+    const msg = encodeURIComponent(buildWaMessage(pendingOrder));
+    window.open(`https://wa.me/${WA_NUMBER}?text=${msg}`, '_blank');
+    logOrder(pendingOrder, 'placed');
+    document.getElementById('payment-select').style.display = 'none';
+    document.getElementById('wa-wait').classList.add('show');
+    return;
+  }
+
+  document.getElementById('payment-select').style.display = 'none';
+  const loadingWrap = document.getElementById('payment-loading');
+  loadingWrap.classList.add('show');
+  document.getElementById('pl-title').textContent =
+    chosenMethod === 'phonepe' ? 'Redirecting to PhonePe…' : 'Redirecting to Razorpay…';
+
+  /* ============================================================
+     PAYMENT INTEGRATION — READ THIS BEFORE GOING LIVE
+     ------------------------------------------------------------
+     This is a DEMO. It only simulates success after a delay.
+     A real flow needs a backend server (Node/PHP/Python etc.)
+     because gateway secret keys can never live in this HTML file.
+
+     Real flow looks like:
+     1. Browser calls YOUR server:  POST /api/create-order
+        body: { cart, customer, amount }
+     2. Your server calls PhonePe or Razorpay's API using your
+        MERCHANT ID + SECRET KEY (kept only on the server) to
+        create a payment session, and gets back a redirect URL
+        (PhonePe "Standard Checkout") or an order_id (Razorpay).
+     3. Browser redirects the user to that URL (PhonePe) or opens
+        the gateway's checkout widget (Razorpay Checkout.js).
+     4. User pays on the gateway's own page — you never see card
+        or UPI details.
+     5. Gateway redirects back to a page on your site AND sends a
+        server-to-server webhook to your backend.
+     6. Your server VERIFIES the payment signature/status with
+        the gateway's API (never trust the redirect alone — a
+        redirect can be faked) and only THEN marks the order paid.
+     7. Browser polls YOUR server (GET /api/order-status/:id) and
+        shows the confirmation once your server says it's paid.
+
+     Swap the setTimeout() below for that real request/response
+     cycle once your backend endpoints exist.
+     ============================================================ */
+  setTimeout(()=>{
+    document.getElementById('pl-title').textContent = 'Payment successful';
+    document.getElementById('pl-sub').textContent = 'Confirming your order…';
+    setTimeout(()=>{
+      completeOrder();
+    }, 900);
+  }, 1800);
+}
+
+function completeOrder(){
+  lastOrder = pendingOrder || buildOrderObject(chosenMethod);
+  renderConfirmation();
+  goTo('confirm');
+  startOrderTracking();
+  logOrder(lastOrder, 'confirmed');
+  // reset payment view state for next time
+  document.getElementById('payment-select').style.display = 'block';
+  document.getElementById('payment-loading').classList.remove('show');
+  document.getElementById('wa-wait').classList.remove('show');
+  pendingOrder = null;
+}
+
+function cancelWaWait(){
+  document.getElementById('wa-wait').classList.remove('show');
+  document.getElementById('payment-select').style.display = 'block';
+}
+
+const TRACK_STAGES = ['placed','preparing','out','delivered'];
+let trackTimers = [];
+
+function fmtTime(d){
+  return d.toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit' });
+}
+
+function setStage(stage){
+  const idx = TRACK_STAGES.indexOf(stage);
+  document.querySelectorAll('.ot-step').forEach(el=>{
+    const sIdx = TRACK_STAGES.indexOf(el.dataset.stage);
+    el.classList.toggle('done', sIdx < idx);
+    el.classList.toggle('active', sIdx === idx);
+    if(sIdx <= idx){
+      const timeEl = document.getElementById('ot-time-'+el.dataset.stage);
+      if(timeEl.textContent === '—') timeEl.textContent = fmtTime(new Date());
+    }
+  });
+  const etaTitle = document.getElementById('eta-title');
+  if(etaTitle){
+    if(stage==='placed') etaTitle.textContent = 'Order received — arriving in ~35–40 mins';
+    if(stage==='preparing') etaTitle.textContent = 'Being prepared — arriving in ~25–30 mins';
+    if(stage==='out') etaTitle.textContent = 'Out for delivery — arriving in ~10–12 mins';
+    if(stage==='delivered') etaTitle.textContent = 'Delivered — enjoy your meal!';
+  }
+}
+
+function startOrderTracking(){
+  /* ============================================================
+     ORDER TRACKING — READ THIS BEFORE GOING LIVE
+     ------------------------------------------------------------
+     This demo auto-advances the stages on a timer so you can see
+     how it looks. For real tracking you need your backend to be
+     the source of truth for order status, updated by:
+       - your kitchen staff tapping "Start preparing" / "Out for
+         delivery" / "Delivered" on a simple order-management
+         screen, OR
+       - a delivery partner's API/webhook (if you use one).
+     This page should then either:
+       a) poll   GET /api/order-status/:orderId   every ~10s, or
+       b) open a WebSocket / Server-Sent Events connection
+     and call setStage(status) with whatever the backend returns,
+     instead of the setTimeout() calls below.
+     ============================================================ */
+  trackTimers.forEach(t=>clearTimeout(t));
+  document.querySelectorAll('.ot-time').forEach(el=>el.textContent='—');
+  setStage('placed');
+  trackTimers = [
+    setTimeout(()=>setStage('preparing'), 4000),
+    setTimeout(()=>setStage('out'), 12000),
+    setTimeout(()=>setStage('delivered'), 20000),
+  ];
+}
+
+function renderConfirmation(){
+  document.getElementById('tk-id').textContent = '#' + lastOrder.id;
+  document.getElementById('tk-name').textContent = lastOrder.customer.name;
+  document.getElementById('tk-addr').textContent = `${lastOrder.customer.area}, ${lastOrder.customer.pin}`;
+  const methodLabels = { phonepe:'PhonePe', razorpay:'Razorpay', whatsapp:'WhatsApp (Pay on delivery)' };
+  document.getElementById('tk-method').textContent = methodLabels[lastOrder.method] || lastOrder.method;
+  document.getElementById('tk-total').textContent = '₹' + lastOrder.total;
+  document.getElementById('tk-items').innerHTML = lastOrder.items.map(({item,qty})=>
+    `<div class="row"><span>${item.nm} × ${qty}</span><span>₹${item.pr*qty}</span></div>`
+  ).join('');
+}
+
+function newOrder(){
+  trackTimers.forEach(t=>clearTimeout(t));
+  cart = {};
+  document.getElementById('cf-name').value='';
+  document.getElementById('cf-phone').value='';
+  document.getElementById('cf-address').value='';
+  document.getElementById('cf-area').value='';
+  document.getElementById('cf-pin').value='';
+  selectPay('whatsapp');
+  renderMenu();
+  updateCartbar();
+  goTo('menu');
+}
+
+function updateWaFloat(){
+  const el = document.getElementById('wa-float');
+  let msg = "Hi Zingo! I'd like to know more about your menu.";
+  if(cartCount() > 0){
+    const lines = Object.entries(cart).map(([id,qty])=>{
+      const item = MENU.find(m=>m.id===id);
+      return `• ${item.nm} x${qty} — ₹${item.pr*qty}`;
+    }).join('\n');
+    msg = `Hi Zingo! I'd like to order:\n\n${lines}\n\nTotal (before delivery): ₹${cartSubtotal()}`;
+  }
+  el.href = `https://wa.me/${WA_NUMBER}?text=${encodeURIComponent(msg)}`;
+}
+
+/* ---------------- navigation ---------------- */
+const STEP_ORDER = ['menu','cart','checkout','payment','confirm'];
+function goTo(view){
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.getElementById('view-'+view).classList.add('active');
+
+  const idx = STEP_ORDER.indexOf(view);
+  document.querySelectorAll('.tracker .step').forEach(step=>{
+    const sIdx = STEP_ORDER.indexOf(step.dataset.step);
+    step.classList.toggle('active', sIdx===idx);
+    step.classList.toggle('done', sIdx<idx);
+  });
+
+  if(view==='cart') renderCart();
+  updateWaFloat();
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+
+/* ---------------- init ---------------- */
+renderMenu();
+goTo('menu');
+</script>
+</body>
+</html>
