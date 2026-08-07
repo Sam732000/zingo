@@ -254,6 +254,7 @@
   .locbtn:active{transform:scale(0.98);}
   .locbtn.loading{color:var(--off-dim); border-color:#4c4a3e; cursor:wait;}
   .locbtn.done{color:#7ec37e; border-color:#3f5c3f; border-style:solid;}
+  .field.auto-filled input, .field.auto-filled textarea{border-color:#3f5c3f; background:rgba(126,195,126,0.08); transition:border-color 0.3s, background 0.3s;}
   .locbtn .spin{display:inline-block; animation:spin 0.8s linear infinite;}
   @keyframes spin{to{transform:rotate(360deg);}}
 
@@ -438,17 +439,31 @@
 
       <div class="field">
         <label>Delivery address</label>
-        <textarea id="cf-address" placeholder="Flat / house no., street, landmark" oninput="customerLat=null; customerLng=null;"></textarea>
+        <textarea id="cf-address" placeholder="Flat / house no., street, landmark" oninput="customerLat=null; customerLng=null; this.closest('.field').classList.remove('auto-filled');"></textarea>
       </div>
       <div class="field-row">
         <div class="field">
           <label>Locality / area</label>
-          <input type="text" id="cf-area" placeholder="e.g. Indiranagar" oninput="customerLat=null; customerLng=null;">
+          <input type="text" id="cf-area" placeholder="e.g. Indiranagar" oninput="customerLat=null; customerLng=null; this.closest('.field').classList.remove('auto-filled');">
         </div>
         <div class="field">
           <label>Pincode</label>
-          <input type="text" id="cf-pin" placeholder="560038" maxlength="6">
+          <input type="text" id="cf-pin" placeholder="560038" maxlength="6" oninput="this.closest('.field').classList.remove('auto-filled');">
         </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>City</label>
+          <input type="text" id="cf-city" placeholder="e.g. Barasat" oninput="this.closest('.field').classList.remove('auto-filled');">
+        </div>
+        <div class="field">
+          <label>District</label>
+          <input type="text" id="cf-district" placeholder="e.g. North 24 Parganas" oninput="this.closest('.field').classList.remove('auto-filled');">
+        </div>
+      </div>
+      <div class="field">
+        <label>State</label>
+        <input type="text" id="cf-state" placeholder="e.g. West Bengal" oninput="this.closest('.field').classList.remove('auto-filled');">
       </div>
       <div class="err" id="cf-err">Please fill in your name, phone, address and pincode correctly.</div>
 
@@ -681,6 +696,29 @@ let pendingOrder = null;
    Leave as-is and order logging is silently skipped — nothing breaks. */
 const ORDERS_API_URL = 'https://script.google.com/macros/s/AKfycbww_AQrsshtGBk7dEmCm9Q3NoV2fObW7gvRYAmapNZIPBe91kdd9defr8sMew7fMvgHHA/exec';
 
+/* ============================================================
+   GOOGLE MAPS API KEY — needed for "Use current location" to
+   turn GPS coordinates into a readable address.
+   ------------------------------------------------------------
+   SETUP:
+   1. Go to https://console.cloud.google.com/ and create a project
+      (or use an existing one).
+   2. You'll be asked to attach a billing account (credit card) —
+      Google requires this even though the Geocoding API gives you
+      ~10,000 free lookups every month, which is far more than a
+      single kitchen will use.
+   3. In the left menu: APIs & Services > Library > search
+      "Geocoding API" > Enable.
+   4. APIs & Services > Credentials > Create Credentials > API key.
+      Copy the key it gives you.
+   5. Click on the new key > under "Application restrictions" choose
+      "Websites" and add the domain(s) where you host this file
+      (e.g. yourdomain.com/* or yourname.github.io/*). This stops
+      anyone else from using your key if they copy your page source.
+   6. Paste the key below.
+   ============================================================ */
+const GOOGLE_MAPS_API_KEY = 'PASTE_YOUR_GOOGLE_MAPS_API_KEY_HERE';
+
 /* Local fallback counter — ONLY used if the Apps Script backend isn't
    configured yet or a request fails. It is NOT duplicate-proof across
    devices/tabs (each browser has its own), so it exists purely so the
@@ -727,7 +765,7 @@ function logOrder(order, status){
     status: status,
     name: order.customer.name || '',
     phone: order.customer.phone || '',
-    address: `${order.customer.address||''}, ${order.customer.area||''} - ${order.customer.pin||''}`,
+    address: `${order.customer.address||''}, ${order.customer.area||''} - ${order.customer.pin||''}${[order.customer.city, order.customer.district, order.customer.state].filter(Boolean).length ? ', ' + [order.customer.city, order.customer.district, order.customer.state].filter(Boolean).join(', ') : ''}`,
     items: order.items.map(i=>`${i.item.nm} x${i.qty}`).join(', '),
     total: order.total,
     method: order.method,
@@ -917,22 +955,41 @@ function renderCart(){
 }
 
 /* ---------------- current location ---------------- */
+/* Pulls the first available value for a set of Google address-component
+   "types" by scanning every result Google returned (most specific first),
+   so if the top result is missing something, we fall back to the next
+   best result instead of leaving a field blank. */
+function pickAddressComponent(results, types){
+  for(const result of results){
+    for(const comp of (result.address_components || [])){
+      if(comp.types.some(t => types.includes(t))) return comp.long_name;
+    }
+  }
+  return '';
+}
+
 function useCurrentLocation(){
   const btn = document.getElementById('loc-btn');
   const icon = document.getElementById('loc-icon');
   const label = document.getElementById('loc-label');
   const errEl = document.getElementById('loc-err');
   errEl.style.display = 'none';
+  btn.classList.remove('done');
 
   if(!navigator.geolocation){
     errEl.textContent = "Your browser doesn't support location access. Please type your address below.";
     errEl.style.display = 'block';
     return;
   }
+  if(!GOOGLE_MAPS_API_KEY || GOOGLE_MAPS_API_KEY.includes('PASTE_YOUR')){
+    errEl.textContent = "Location lookup isn't set up yet. You can type your address below instead.";
+    errEl.style.display = 'block';
+    return;
+  }
 
   btn.classList.add('loading');
   icon.innerHTML = '<span class="spin">⟳</span>';
-  label.textContent = 'Locating you…';
+  label.textContent = '📍 Detecting your location...';
 
   navigator.geolocation.getCurrentPosition(
     async (pos) => {
@@ -940,35 +997,55 @@ function useCurrentLocation(){
       customerLat = latitude;
       customerLng = longitude;
       try {
-        label.textContent = 'Fetching address…';
-        /* Free reverse-geocoding lookup (OpenStreetMap Nominatim, no API key).
-           For production, swap this for Google Maps Geocoding API or
-           MapmyIndia — both give more reliable results in India and
-           support proper usage limits/keys. */
+        label.textContent = '🌍 Getting address from Google Maps...';
+
         const res = await fetch(
-          `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}`,
-          { headers: { 'Accept': 'application/json' } }
+          `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&language=en&region=in&key=${GOOGLE_MAPS_API_KEY}`
         );
         const data = await res.json();
-        const a = data.address || {};
 
-        const line = [a.house_number, a.road, a.suburb].filter(Boolean).join(', ');
-        const area = a.suburb || a.neighbourhood || a.city_district || a.city || a.town || '';
-        const pin = a.postcode || '';
+        if(data.status !== 'OK' || !data.results || !data.results.length){
+          throw new Error(data.status || 'ZERO_RESULTS');
+        }
+        const results = data.results;
 
-        if(line) document.getElementById('cf-address').value = line;
-        if(area) document.getElementById('cf-area').value = area;
-        if(pin) document.getElementById('cf-pin').value = pin;
+        const streetNumber = pickAddressComponent(results, ['street_number']);
+        const route = pickAddressComponent(results, ['route']);
+        const premise = pickAddressComponent(results, ['premise', 'subpremise']);
+        const sublocality = pickAddressComponent(results, ['sublocality_level_1','sublocality_level_2','sublocality','neighborhood']);
+        const locality = pickAddressComponent(results, ['locality','postal_town']);
+        const district = pickAddressComponent(results, ['administrative_area_level_2']);
+        const state = pickAddressComponent(results, ['administrative_area_level_1']);
+        const postalCode = pickAddressComponent(results, ['postal_code']);
+
+        const streetLine = [streetNumber, route].filter(Boolean).join(' ');
+        const addressLine = [premise, streetLine].filter(Boolean).join(', ') || sublocality || locality;
+        const area = sublocality || locality || district;
+
+        const fills = {
+          'cf-address': addressLine,
+          'cf-area': area,
+          'cf-pin': postalCode,
+          'cf-city': locality,
+          'cf-district': district,
+          'cf-state': state
+        };
+        Object.entries(fills).forEach(([id, val]) => {
+          if(!val) return;
+          const el = document.getElementById(id);
+          el.value = val;
+          el.closest('.field').classList.add('auto-filled');
+        });
 
         btn.classList.remove('loading');
         btn.classList.add('done');
-        icon.textContent = '✓';
-        label.textContent = 'Location added — check it below';
+        icon.textContent = '✅';
+        label.textContent = 'Address detected successfully';
       } catch (e) {
         btn.classList.remove('loading');
         icon.textContent = '📍';
         label.textContent = 'Use current location';
-        errEl.textContent = "Found your location but couldn't fetch the address. Please fill it in manually.";
+        errEl.textContent = "Unable to fetch your address. Please enter it manually.";
         errEl.style.display = 'block';
       }
     },
@@ -977,7 +1054,7 @@ function useCurrentLocation(){
       icon.textContent = '📍';
       label.textContent = 'Use current location';
       errEl.textContent = error.code === error.PERMISSION_DENIED
-        ? 'Location access was denied. You can type your address below instead.'
+        ? 'Location access is turned off. Please enable location access for this site, or type your address below.'
         : "Couldn't get your location. You can type your address below instead.";
       errEl.style.display = 'block';
     },
@@ -992,6 +1069,9 @@ function submitCheckout(){
   const address = document.getElementById('cf-address').value.trim();
   const area = document.getElementById('cf-area').value.trim();
   const pin = document.getElementById('cf-pin').value.trim();
+  const city = document.getElementById('cf-city').value.trim();
+  const district = document.getElementById('cf-district').value.trim();
+  const state = document.getElementById('cf-state').value.trim();
   const err = document.getElementById('cf-err');
 
   const phoneOk = /^\d{10}$/.test(phone);
@@ -1002,7 +1082,7 @@ function submitCheckout(){
     return;
   }
   err.style.display = 'none';
-  customer = { name, phone, address, area, pin };
+  customer = { name, phone, address, area, pin, city, district, state };
   document.getElementById('pay-amount').textContent = '₹' + (cartSubtotal()+getDeliveryFee()+PACKAGING_FEE);
   goTo('payment');
 }
@@ -1021,7 +1101,8 @@ function buildWaMessage(order){
   const lines = order.items.map(({item,qty}) => `• ${item.nm} x${qty} — ₹${item.pr*qty}`).join('\n');
   const c = order.customer;
   const deliveryLabel = order.deliveryFee === 0 ? 'FREE' : `₹${order.deliveryFee}`;
-  return `Hi Zingo! I'd like to order (${order.id}):\n\n${lines}\n\nDelivery: ${deliveryLabel}  Packaging: ₹${PACKAGING_FEE}\nTotal: ₹${order.total}\n\nName: ${c.name || ''}\nPhone: ${c.phone || ''}\nAddress: ${c.address || ''}, ${c.area || ''} - ${c.pin || ''}`;
+  const cityLine = [c.city, c.district, c.state].filter(Boolean).join(', ');
+  return `Hi Zingo! I'd like to order (${order.id}):\n\n${lines}\n\nDelivery: ${deliveryLabel}  Packaging: ₹${PACKAGING_FEE}\nTotal: ₹${order.total}\n\nName: ${c.name || ''}\nPhone: ${c.phone || ''}\nAddress: ${c.address || ''}, ${c.area || ''} - ${c.pin || ''}${cityLine ? '\n' + cityLine : ''}`;
 }
 
 async function startPayment(){
