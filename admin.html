@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Zingo — Admin Orders</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#1b1b18; --steel:#26251f; --steel-2:#312f27;
+    --turmeric:#f0a532; --turmeric-dim:#a8762b; --chili:#b23a2e;
+    --zyellow:#ffc72c; --off:#f3efe4; --off-dim:#c9c4b6; --radius:14px;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{background:var(--ink); color:var(--off); font-family:'Space Grotesk', sans-serif; min-height:100vh; -webkit-font-smoothing:antialiased;}
+  .display{font-family:'Archivo Black', sans-serif;}
+  .mono{font-family:'Space Mono', monospace;}
+  #app{max-width:900px; margin:0 auto; min-height:100vh; padding-bottom:40px;}
+
+  /* ---------- gate ---------- */
+  #gate{min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:24px; text-align:center;}
+  #gate .bolt{width:46px; height:46px; margin-bottom:18px;}
+  #gate h1{font-size:20px; margin-bottom:6px;}
+  #gate p{font-size:12.5px; color:var(--off-dim); margin-bottom:22px; max-width:32ch; font-family:'Space Mono',monospace;}
+  #gate input{
+    width:100%; max-width:260px; background:var(--steel); border:1.5px solid #3a382d; color:var(--off);
+    padding:13px 14px; border-radius:10px; font-size:15px; text-align:center; letter-spacing:0.15em;
+    font-family:'Space Mono',monospace; outline:none; margin-bottom:14px;
+  }
+  #gate input:focus{border-color:var(--turmeric);}
+  #gate button{
+    background:var(--turmeric); color:var(--ink); border:none; padding:13px 28px; border-radius:10px;
+    font-size:14px; font-weight:700; cursor:pointer; font-family:inherit;
+  }
+  #gate .gerr{color:var(--chili); font-size:12px; margin-top:10px; font-family:'Space Mono',monospace; display:none;}
+  #gate .gnote{font-size:10.5px; color:#6b6858; margin-top:26px; max-width:34ch; line-height:1.5; font-family:'Space Mono',monospace;}
+
+  /* ---------- shell ---------- */
+  #dashboard{display:none;}
+  #dashboard.show{display:block;}
+  header.top{padding:16px 20px; display:flex; align-items:center; gap:12px; border-bottom:1px solid #38362c; position:sticky; top:0; background:var(--ink); z-index:30;}
+  .bolt{flex-shrink:0;}
+  .brand{display:flex; flex-direction:column; line-height:1;}
+  .brand .name{font-size:18px;}
+  .brand .tag{font-size:10px; color:var(--off-dim); text-transform:uppercase; letter-spacing:0.14em; margin-top:4px; font-family:'Space Mono',monospace;}
+  .refresh-info{margin-left:auto; text-align:right; font-family:'Space Mono',monospace; font-size:10px; color:#6b6858;}
+  .icon-btn{background:var(--steel); border:1px solid #3a382d; color:var(--turmeric); width:34px; height:34px; border-radius:8px; cursor:pointer; font-size:14px; margin-left:8px; flex-shrink:0;}
+  .icon-btn.logout{color:var(--chili); font-size:11px; font-weight:700; width:auto; padding:0 12px; font-family:'Space Mono',monospace;}
+
+  main{padding:14px 0 4px;}
+
+  .state-msg{text-align:center; padding:50px 20px; color:var(--off-dim); font-size:13px; line-height:1.6;}
+  .state-msg code{background:var(--steel); padding:2px 6px; border-radius:5px; font-family:'Space Mono',monospace; font-size:11.5px;}
+
+  /* ---------- kanban ---------- */
+  .kanban{display:flex; gap:14px; overflow-x:auto; scroll-snap-type:x mandatory; padding:2px 20px 10px; -webkit-overflow-scrolling:touch;}
+  .kcol{flex:0 0 86vw; max-width:380px; scroll-snap-align:start;}
+  .kcol-head{display:flex; align-items:center; gap:8px; position:sticky; top:0; background:var(--ink); padding:6px 0 12px; z-index:5;}
+  .kcol-dot{width:8px; height:8px; border-radius:50%; flex-shrink:0;}
+  .kcol-pending .kcol-dot{background:var(--zyellow);}
+  .kcol-preparing .kcol-dot{background:var(--turmeric);}
+  .kcol-delivered .kcol-dot{background:#7ec37e;}
+  .kcol-title{font-size:13.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.08em;}
+  .kcol-count{margin-left:auto; font-family:'Space Mono',monospace; font-size:11px; color:var(--off-dim); background:var(--steel); padding:2px 9px; border-radius:10px;}
+  .kcol-body{min-height:60px;}
+  .kcol-empty{color:#6b6858; font-size:12px; font-family:'Space Mono',monospace; padding:20px 4px; text-align:center;}
+
+  .order-card{background:var(--steel); border:1px solid #3a382d; border-radius:var(--radius); padding:16px 18px; margin-bottom:14px;}
+  .oc-top{display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px;}
+  .oc-id{font-family:'Space Mono',monospace; font-size:12.5px; color:var(--turmeric); font-weight:700;}
+  .oc-time{font-family:'Space Mono',monospace; font-size:10.5px; color:#6b6858; margin-top:3px;}
+  .status-badge{
+    font-family:'Space Mono',monospace; font-size:10px; font-weight:700; text-transform:uppercase;
+    padding:4px 10px; border-radius:12px; letter-spacing:0.05em; white-space:nowrap;
+  }
+  .status-placed{background:#3a382d; color:var(--zyellow);}
+  .status-confirmed{background:#3a382d; color:#7ec3e8;}
+  .status-preparing{background:rgba(240,165,50,0.15); color:var(--turmeric);}
+  .status-out{background:rgba(126,195,126,0.15); color:#7ec37e;}
+  .status-delivered{background:rgba(126,195,126,0.25); color:#7ec37e;}
+  .status-cancelled{background:rgba(178,58,46,0.2); color:#e08074;}
+
+  .oc-name{font-size:14.5px; font-weight:700; margin-bottom:2px;}
+  .oc-phone{font-size:12px; color:var(--off-dim); font-family:'Space Mono',monospace; margin-bottom:8px;}
+  .oc-phone a{color:inherit; text-decoration:none;}
+  .oc-addr{font-size:12.5px; color:var(--off-dim); line-height:1.4; margin-bottom:10px;}
+  .oc-items{font-size:12.5px; line-height:1.6; margin-bottom:10px; color:var(--off);}
+  .oc-foot{display:flex; justify-content:space-between; align-items:center; border-top:1px dashed #3a382d; padding-top:10px; margin-top:2px;}
+  .oc-total{font-family:'Space Mono',monospace; font-weight:700; font-size:14.5px; color:var(--turmeric);}
+  .oc-method{font-size:10.5px; color:var(--off-dim); font-family:'Space Mono',monospace; text-transform:uppercase;}
+
+  .oc-meta{display:flex; gap:8px; margin-top:12px;}
+  .oc-meta select{
+    flex:1; background:var(--ink); border:1.5px solid #3a382d; color:var(--off); font-family:'Space Mono',monospace;
+    font-size:11px; padding:8px 6px; border-radius:8px; outline:none;
+  }
+  .oc-meta label{display:block; font-size:9.5px; color:#6b6858; text-transform:uppercase; letter-spacing:0.06em; margin-bottom:4px; font-family:'Space Mono',monospace;}
+
+  .oc-actions{display:flex; gap:8px; margin-top:12px; flex-wrap:wrap;}
+  .act-btn{
+    flex:1; min-width:110px; background:var(--turmeric); color:var(--ink); border:none; padding:9px 10px;
+    border-radius:9px; font-size:12px; font-weight:700; cursor:pointer; font-family:inherit;
+  }
+  .act-btn.secondary{background:transparent; border:1.5px solid #3a382d; color:var(--off-dim);}
+  .act-btn:active{transform:scale(0.97);}
+
+  .wa-btn{
+    display:inline-flex; align-items:center; gap:6px; background:#25D366; color:#fff; border:none;
+    padding:9px 12px; border-radius:9px; font-size:12px; font-weight:700; cursor:pointer; font-family:inherit;
+  }
+
+  /* ---------- cancelled drawer ---------- */
+  .cancelled-toggle{
+    display:block; width:calc(100% - 40px); margin:6px 20px 20px; background:var(--steel); border:1px dashed #3a382d;
+    color:var(--off-dim); padding:11px; border-radius:10px; font-size:12px; font-family:'Space Mono',monospace; cursor:pointer;
+  }
+  #cancelled-list{display:none; padding:0 20px;}
+  #cancelled-list.show{display:block;}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- ============ PASSCODE GATE ============ -->
+  <div id="gate">
+    <svg class="bolt" viewBox="0 0 40 40" fill="none"><path d="M22 2 L8 22 H18 L15 38 L33 15 H22 L26 2 Z" fill="#ea1d25" stroke="#ffc72c" stroke-width="1.5" stroke-linejoin="round"/></svg>
+    <h1 class="display">ZINGO ADMIN</h1>
+    <p>Enter your admin passcode to view live orders.</p>
+    <input type="password" id="gate-input" placeholder="PASSCODE" maxlength="30" onkeydown="if(event.key==='Enter') tryUnlock();">
+    <br>
+    <button onclick="tryUnlock()">Unlock</button>
+    <div class="gerr" id="gate-err">Wrong passcode. Try again.</div>
+    <div class="gnote">Session stays open on this device for a few hours, then you'll be asked to re-enter your passcode.</div>
+  </div>
+
+  <!-- ============ DASHBOARD ============ -->
+  <div id="dashboard">
+    <header class="top">
+      <svg class="bolt" width="30" height="30" viewBox="0 0 40 40" fill="none"><path d="M22 2 L8 22 H18 L15 38 L33 15 H22 L26 2 Z" fill="#ea1d25" stroke="#ffc72c" stroke-width="1.5" stroke-linejoin="round"/></svg>
+      <div class="brand">
+        <span class="name display">ZINGO</span>
+        <span class="tag">Order dashboard</span>
+      </div>
+      <div class="refresh-info" id="refresh-info">—</div>
+      <button class="icon-btn" onclick="loadOrders()" title="Refresh now">⟳</button>
+      <button class="icon-btn logout" onclick="lockNow()" title="Log out">Logout</button>
+    </header>
+
+    <main id="main-content">
+      <div class="state-msg">Loading orders…</div>
+    </main>
+
+    <button class="cancelled-toggle" id="cancelled-toggle" onclick="toggleCancelled()" style="display:none;"></button>
+    <div id="cancelled-list"></div>
+  </div>
+
+</div>
+
+<script>
+/* ============================================================
+   1) ADMIN_PASSCODE_HASH is a SHA-256 hash of your passcode, not
+      the passcode itself — this way, anyone glancing at this
+      file's source doesn't see your actual passcode in plain text.
+      The default below corresponds to "zingo123".
+
+      TO SET YOUR OWN PASSCODE:
+      Open your browser's console (F12 or long-press > Inspect on
+      most phones) on ANY webpage and paste this, swapping in your
+      new passcode, then press Enter:
+
+        crypto.subtle.digest('SHA-256', new TextEncoder().encode('yourNewPasscode'))
+          .then(b => console.log([...new Uint8Array(b)].map(x => x.toString(16).padStart(2,'0')).join('')))
+
+      Copy the long string it prints out, and paste it below as
+      the new ADMIN_PASSCODE_HASH value.
+
+      Honest note on security: this is still a client-side-only
+      check — hashing stops someone from reading your passcode
+      directly off the page, but it does NOT make this a secure
+      login system. Anyone determined enough could still bypass
+      it using their browser's developer tools. Don't share this
+      page's URL publicly, and don't store anything here you
+      couldn't afford a stranger seeing if truly determined.
+   2) Paste the same Apps Script Web App URL you used in
+      zingo-menu.html.
+   ============================================================ */
+const ADMIN_PASSCODE_HASH = 'b209f83f389e58190749faefc456cdb6c1a1df0e97599e0cfcf28676f8792200';
+const ORDERS_API_URL = 'https://script.google.com/macros/s/AKfycbww_AQrsshtGBk7dEmCm9Q3NoV2fObW7gvRYAmapNZIPBe91kdd9defr8sMew7fMvgHHA/exec';
+
+const SESSION_KEY = 'zingo_admin_session';
+const SESSION_MS = 8 * 60 * 60 * 1000; // 8 hours — change to tune how long a login lasts
+
+const STATUS_LABELS = {
+  placed: 'New', confirmed: 'Confirmed', preparing: 'Preparing',
+  out: 'Out for delivery', delivered: 'Delivered', cancelled: 'Cancelled'
+};
+// Both fresh states collapse straight to "preparing" — the kanban board
+// only has 3 working columns, so there's no separate "confirmed" stop.
+const NEXT_STATUS = { placed:'preparing', confirmed:'preparing', preparing:'out', out:'delivered' };
+const PAYMENT_OPTIONS = ['Cash on Delivery', 'Paid Online'];
+const RIDERS_KEY = 'zingo_admin_riders'; // local convenience list only — not customer data
+
+let orders = [];
+let pollTimer = null;
+let lockTimer = null;
+let cancelledShown = false;
+
+async function sha256Hex(str){
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+  return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2,'0')).join('');
+}
+
+async function tryUnlock(){
+  const val = document.getElementById('gate-input').value;
+  const hash = await sha256Hex(val);
+  if(hash === ADMIN_PASSCODE_HASH){
+    const exp = Date.now() + SESSION_MS;
+    localStorage.setItem(SESSION_KEY, JSON.stringify({ exp }));
+    startSession(exp);
+  } else {
+    document.getElementById('gate-err').style.display = 'block';
+  }
+}
+
+function startSession(exp){
+  document.getElementById('gate').style.display = 'none';
+  document.getElementById('dashboard').classList.add('show');
+  loadOrders();
+  pollTimer = setInterval(loadOrders, 20000);
+  const msLeft = exp - Date.now();
+  lockTimer = setTimeout(lockNow, Math.max(msLeft, 0));
+}
+
+function lockNow(){
+  localStorage.removeItem(SESSION_KEY);
+  if(pollTimer) clearInterval(pollTimer);
+  if(lockTimer) clearTimeout(lockTimer);
+  document.getElementById('dashboard').classList.remove('show');
+  document.getElementById('gate').style.display = 'flex';
+  document.getElementById('gate-input').value = '';
+  document.getElementById('gate-err').style.display = 'none';
+}
+
+function checkExistingSession(){
+  try{
+    const raw = localStorage.getItem(SESSION_KEY);
+    if(!raw) return;
+    const { exp } = JSON.parse(raw);
+    if(exp && exp > Date.now()){
+      startSession(exp);
+    } else {
+      localStorage.removeItem(SESSION_KEY);
+    }
+  }catch(e){ /* corrupted/old session data — just show the gate */ }
+}
+
+/* ---------------- riders (local convenience list) ---------------- */
+function getRiderList(){
+  try{
+    const stored = JSON.parse(localStorage.getItem(RIDERS_KEY) || '[]');
+    return stored.length ? stored : ['Unassigned'];
+  }catch(e){ return ['Unassigned']; }
+}
+function saveRiderList(list){ localStorage.setItem(RIDERS_KEY, JSON.stringify(list)); }
+
+function onRiderChange(id, selectEl){
+  if(selectEl.value === '__add__'){
+    const name = prompt('New rider name:');
+    selectEl.value = orders.find(o=>o.id===id)?.rider || 'Unassigned'; // revert while we wait
+    if(!name || !name.trim()) return;
+    const list = getRiderList();
+    if(!list.includes(name.trim())) list.push(name.trim());
+    saveRiderList(list);
+    setOrderField(id, 'rider', name.trim());
+    renderBoard();
+    return;
+  }
+  setOrderField(id, 'rider', selectEl.value);
+}
+
+function onPaymentChange(id, selectEl){
+  setOrderField(id, 'paymentStatus', selectEl.value);
+}
+
+function setOrderField(id, field, value){
+  const order = orders.find(o=>o.id===id);
+  if(!order) return;
+  order[field] = value; // optimistic
+  pushOrderUpdate(order);
+}
+
+/* ---------------- data ---------------- */
+async function loadOrders(){
+  const infoEl = document.getElementById('refresh-info');
+  if(!ORDERS_API_URL || ORDERS_API_URL.includes('PASTE_YOUR')){
+    document.getElementById('main-content').innerHTML = `
+      <div class="state-msg">
+        No orders API connected yet.<br><br>
+        Open <code>zingo-orders-backend.gs.txt</code> for the 5-minute setup,
+        then paste your Apps Script URL into the <code>ORDERS_API_URL</code>
+        constant near the top of this file's &lt;script&gt; tag.
+      </div>`;
+    return;
+  }
+  try{
+    infoEl.textContent = 'Refreshing…';
+    const res = await fetch(ORDERS_API_URL);
+    orders = (await res.json()).filter(o => o && o.id && o.id !== 'Order ID');
+    renderBoard();
+    infoEl.textContent = 'Updated ' + new Date().toLocaleTimeString('en-IN', {hour:'2-digit', minute:'2-digit'});
+  }catch(err){
+    infoEl.textContent = 'Refresh failed';
+    document.getElementById('main-content').innerHTML = `<div class="state-msg">Couldn't load orders. Check your internet connection or the Apps Script URL, then tap ⟳ to retry.</div>`;
+  }
+}
+
+/* ---------------- rendering ---------------- */
+function buildCard(o){
+  const status = o.status || 'placed';
+  const time = o.timestamp ? new Date(o.timestamp).toLocaleString('en-IN', {day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit'}) : '';
+  const nextStatus = NEXT_STATUS[status];
+  const waMsg = encodeURIComponent(`Hi ${o.name || ''}, this is Zingo — your order ${o.id} is ${(STATUS_LABELS[status] || status || '').toLowerCase()}.`);
+  const phoneDigits = (o.phone || '').replace(/\D/g,'');
+
+  const riderList = getRiderList();
+  if(o.rider && !riderList.includes(o.rider)) riderList.push(o.rider);
+  const riderOptions = riderList.map(r => `<option value="${r}" ${o.rider===r?'selected':''}>${r}</option>`).join('')
+    + `<option value="__add__">+ Add new rider…</option>`;
+
+  const paymentOptions = PAYMENT_OPTIONS.map(p => `<option value="${p}" ${(o.paymentStatus||'Cash on Delivery')===p?'selected':''}>${p}</option>`).join('');
+
+  return `
+    <div class="order-card">
+      <div class="oc-top">
+        <div><div class="oc-id">#${o.id}</div><div class="oc-time">${time}</div></div>
+        <span class="status-badge status-${status}">${STATUS_LABELS[status] || status}</span>
+      </div>
+      <div class="oc-name">${o.name || '—'}</div>
+      <div class="oc-phone">${o.phone ? `<a href="tel:${o.phone}">${o.phone}</a>` : '—'}</div>
+      <div class="oc-addr">${o.address || '—'}</div>
+      <div class="oc-items">${o.items || '—'}</div>
+      <div class="oc-foot">
+        <span class="oc-total">₹${o.total || 0}</span>
+        <span class="oc-method">${o.method || ''}</span>
+      </div>
+      <div class="oc-meta">
+        <div>
+          <label>Rider</label>
+          <select onchange="onRiderChange('${o.id}', this)">${riderOptions}</select>
+        </div>
+        <div>
+          <label>Payment</label>
+          <select onchange="onPaymentChange('${o.id}', this)">${paymentOptions}</select>
+        </div>
+      </div>
+      <div class="oc-actions">
+        ${nextStatus ? `<button class="act-btn" onclick="advanceStatus('${o.id}','${nextStatus}')">Mark ${STATUS_LABELS[nextStatus]}</button>` : ''}
+        ${status!=='cancelled' && status!=='delivered' ? `<button class="act-btn secondary" onclick="advanceStatus('${o.id}','cancelled')">Cancel</button>` : ''}
+        ${phoneDigits ? `<button class="wa-btn" onclick="window.open('https://wa.me/${phoneDigits}?text=${waMsg}','_blank')">💬 Message</button>` : ''}
+      </div>
+    </div>`;
+}
+
+function renderBoard(){
+  const pending = orders.filter(o => ['placed','confirmed'].includes(o.status || 'placed'));
+  const preparing = orders.filter(o => ['preparing','out'].includes(o.status));
+  const delivered = orders.filter(o => o.status === 'delivered');
+  const cancelled = orders.filter(o => o.status === 'cancelled');
+
+  const col = (key, title, list) => `
+    <div class="kcol kcol-${key}">
+      <div class="kcol-head"><span class="kcol-dot"></span><span class="kcol-title">${title}</span><span class="kcol-count">${list.length}</span></div>
+      <div class="kcol-body">${list.length ? list.map(buildCard).join('') : `<div class="kcol-empty">No orders here yet</div>`}</div>
+    </div>`;
+
+  const main = document.getElementById('main-content');
+  if(orders.length === 0){
+    main.innerHTML = `<div class="state-msg">No orders here yet.</div>`;
+  } else {
+    main.innerHTML = `<div class="kanban">
+      ${col('pending','Pending', pending)}
+      ${col('preparing','Preparing', preparing)}
+      ${col('delivered','Delivered', delivered)}
+    </div>`;
+  }
+
+  const toggleBtn = document.getElementById('cancelled-toggle');
+  if(cancelled.length){
+    toggleBtn.style.display = 'block';
+    toggleBtn.textContent = (cancelledShown ? 'Hide' : 'Show') + ` cancelled orders (${cancelled.length})`;
+  } else {
+    toggleBtn.style.display = 'none';
+  }
+  document.getElementById('cancelled-list').innerHTML = cancelled.map(buildCard).join('');
+}
+
+function toggleCancelled(){
+  cancelledShown = !cancelledShown;
+  document.getElementById('cancelled-list').classList.toggle('show', cancelledShown);
+  renderBoard();
+}
+
+/* ---------------- writes ---------------- */
+async function advanceStatus(id, newStatus){
+  const order = orders.find(o=>o.id===id);
+  if(!order) return;
+  order.status = newStatus; // optimistic update
+  renderBoard();
+  pushOrderUpdate(order);
+}
+
+async function pushOrderUpdate(order){
+  try{
+    await fetch(ORDERS_API_URL, {
+      method:'POST',
+      headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body: JSON.stringify({
+        id: order.id, status: order.status, name: order.name, phone: order.phone,
+        address: order.address, items: order.items, total: order.total, method: order.method,
+        rider: order.rider || '', paymentStatus: order.paymentStatus || 'Cash on Delivery'
+      })
+    });
+  }catch(err){
+    // silent fail — next auto-refresh will resync from the sheet
+  }
+}
+
+checkExistingSession();
+</script>
+</body>
+</html>
