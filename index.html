@@ -697,27 +697,14 @@ let pendingOrder = null;
 const ORDERS_API_URL = 'https://script.google.com/macros/s/AKfycbww_AQrsshtGBk7dEmCm9Q3NoV2fObW7gvRYAmapNZIPBe91kdd9defr8sMew7fMvgHHA/exec';
 
 /* ============================================================
-   GOOGLE MAPS API KEY — needed for "Use current location" to
-   turn GPS coordinates into a readable address.
+   GEOAPIFY API KEY — needed for "Use current location" to turn
+   GPS coordinates into a readable address.
    ------------------------------------------------------------
-   SETUP:
-   1. Go to https://console.cloud.google.com/ and create a project
-      (or use an existing one).
-   2. You'll be asked to attach a billing account (credit card) —
-      Google requires this even though the Geocoding API gives you
-      ~10,000 free lookups every month, which is far more than a
-      single kitchen will use.
-   3. In the left menu: APIs & Services > Library > search
-      "Geocoding API" > Enable.
-   4. APIs & Services > Credentials > Create Credentials > API key.
-      Copy the key it gives you.
-   5. Click on the new key > under "Application restrictions" choose
-      "Websites" and add the domain(s) where you host this file
-      (e.g. yourdomain.com/* or yourname.github.io/*). This stops
-      anyone else from using your key if they copy your page source.
-   6. Paste the key below.
+   Free plan: 3,000 lookups/day, no credit card required.
+   Manage or rotate this key any time at myprojects.geoapify.com
    ============================================================ */
-const GOOGLE_MAPS_API_KEY = 'PASTE_YOUR_GOOGLE_MAPS_API_KEY_HERE';
+const GEOAPIFY_API_KEY = 'c7cffd41c3144ac5a44237483053b297';
+
 
 /* Local fallback counter — ONLY used if the Apps Script backend isn't
    configured yet or a request fails. It is NOT duplicate-proof across
@@ -955,19 +942,6 @@ function renderCart(){
 }
 
 /* ---------------- current location ---------------- */
-/* Pulls the first available value for a set of Google address-component
-   "types" by scanning every result Google returned (most specific first),
-   so if the top result is missing something, we fall back to the next
-   best result instead of leaving a field blank. */
-function pickAddressComponent(results, types){
-  for(const result of results){
-    for(const comp of (result.address_components || [])){
-      if(comp.types.some(t => types.includes(t))) return comp.long_name;
-    }
-  }
-  return '';
-}
-
 function useCurrentLocation(){
   const btn = document.getElementById('loc-btn');
   const icon = document.getElementById('loc-icon');
@@ -981,7 +955,7 @@ function useCurrentLocation(){
     errEl.style.display = 'block';
     return;
   }
-  if(!GOOGLE_MAPS_API_KEY || GOOGLE_MAPS_API_KEY.includes('PASTE_YOUR')){
+  if(!GEOAPIFY_API_KEY || GEOAPIFY_API_KEY.includes('PASTE_YOUR')){
     errEl.textContent = "Location lookup isn't set up yet. You can type your address below instead.";
     errEl.style.display = 'block';
     return;
@@ -997,36 +971,34 @@ function useCurrentLocation(){
       customerLat = latitude;
       customerLng = longitude;
       try {
-        label.textContent = '🌍 Getting address from Google Maps...';
+        label.textContent = '🌍 Getting your address...';
 
         const res = await fetch(
-          `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&language=en&region=in&key=${GOOGLE_MAPS_API_KEY}`
+          `https://api.geoapify.com/v1/geocode/reverse?lat=${latitude}&lon=${longitude}&lang=en&format=json&apiKey=${GEOAPIFY_API_KEY}`
         );
         const data = await res.json();
 
-        if(data.status !== 'OK' || !data.results || !data.results.length){
-          throw new Error(data.status || 'ZERO_RESULTS');
+        if(!data.results || !data.results.length){
+          throw new Error('ZERO_RESULTS');
         }
-        const results = data.results;
+        const p = data.results[0];
 
-        const streetNumber = pickAddressComponent(results, ['street_number']);
-        const route = pickAddressComponent(results, ['route']);
-        const premise = pickAddressComponent(results, ['premise', 'subpremise']);
-        const sublocality = pickAddressComponent(results, ['sublocality_level_1','sublocality_level_2','sublocality','neighborhood']);
-        const locality = pickAddressComponent(results, ['locality','postal_town']);
-        const district = pickAddressComponent(results, ['administrative_area_level_2']);
-        const state = pickAddressComponent(results, ['administrative_area_level_1']);
-        const postalCode = pickAddressComponent(results, ['postal_code']);
-
-        const streetLine = [streetNumber, route].filter(Boolean).join(' ');
-        const addressLine = [premise, streetLine].filter(Boolean).join(', ') || sublocality || locality;
-        const area = sublocality || locality || district;
+        // Geoapify already gives a clean "housenumber + street" combo here,
+        // so we only build it manually if that's missing.
+        const addressLine = p.address_line1
+          || [p.housenumber, p.street].filter(Boolean).join(' ')
+          || p.suburb || '';
+        const area = p.suburb || p.quarter || p.city_district || p.district || p.city || '';
+        const city = p.city || p.town || p.village || p.suburb || '';
+        const district = p.district || p.county || p.state_district || '';
+        const state = p.state || '';
+        const postalCode = p.postcode || '';
 
         const fills = {
           'cf-address': addressLine,
           'cf-area': area,
           'cf-pin': postalCode,
-          'cf-city': locality,
+          'cf-city': city,
           'cf-district': district,
           'cf-state': state
         };
