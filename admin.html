@@ -60,6 +60,7 @@
   .kcol-dot{width:8px; height:8px; border-radius:50%; flex-shrink:0;}
   .kcol-pending .kcol-dot{background:var(--zyellow);}
   .kcol-preparing .kcol-dot{background:var(--turmeric);}
+  .kcol-outfordelivery .kcol-dot{background:#7ec3e8;}
   .kcol-delivered .kcol-dot{background:#7ec37e;}
   .kcol-title{font-size:13.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.08em;}
   .kcol-count{margin-left:auto; font-family:'Space Mono',monospace; font-size:11px; color:var(--off-dim); background:var(--steel); padding:2px 9px; border-radius:10px;}
@@ -147,9 +148,9 @@
       <button class="icon-btn logout" onclick="lockNow()" title="Log out">Logout</button>
     </header>
 
-    <main id="main-content">
-      <div class="state-msg">Loading orders…</div>
-    </main>
+    <div id="conn-banner" style="display:none; margin:12px 20px 0; padding:12px 14px; background:rgba(178,58,46,0.15); border:1px solid #6b3229; border-radius:10px; font-family:'Space Mono',monospace; font-size:11px; color:#e08074; line-height:1.6; word-break:break-word;"></div>
+
+    <main id="main-content"></main>
 
     <button class="cancelled-toggle" id="cancelled-toggle" onclick="toggleCancelled()" style="display:none;"></button>
     <div id="cancelled-list"></div>
@@ -159,37 +160,17 @@
 
 <script>
 /* ============================================================
-   1) ADMIN_PASSCODE_HASH is a SHA-256 hash of your passcode, not
-      the passcode itself — this way, anyone glancing at this
-      file's source doesn't see your actual passcode in plain text.
-      The default below corresponds to "zingo123".
+   Your passcode is checked entirely on the server now (see
+   ADMIN_PASSCODE_HASH in zingo-orders-backend.gs.txt) — this
+   file contains no trace of it. To change your passcode, edit
+   that .gs file, not this one.
 
-      TO SET YOUR OWN PASSCODE:
-      Open your browser's console (F12 or long-press > Inspect on
-      most phones) on ANY webpage and paste this, swapping in your
-      new passcode, then press Enter:
-
-        crypto.subtle.digest('SHA-256', new TextEncoder().encode('yourNewPasscode'))
-          .then(b => console.log([...new Uint8Array(b)].map(x => x.toString(16).padStart(2,'0')).join('')))
-
-      Copy the long string it prints out, and paste it below as
-      the new ADMIN_PASSCODE_HASH value.
-
-      Honest note on security: this is still a client-side-only
-      check — hashing stops someone from reading your passcode
-      directly off the page, but it does NOT make this a secure
-      login system. Anyone determined enough could still bypass
-      it using their browser's developer tools. Don't share this
-      page's URL publicly, and don't store anything here you
-      couldn't afford a stranger seeing if truly determined.
-   2) Paste the same Apps Script Web App URL you used in
-      zingo-menu.html.
+   Paste the same Apps Script Web App URL you used in
+   zingo-menu.html.
    ============================================================ */
-const ADMIN_PASSCODE_HASH = 'b209f83f389e58190749faefc456cdb6c1a1df0e97599e0cfcf28676f8792200';
-const ORDERS_API_URL = 'https://script.google.com/macros/s/AKfycbzmIPyFXe-W7h6MCd-Y0kxTdKLWT7ile6rCUGph_bkCLUb-wcqxuUkdF67nfeG-TPLpyA/exec';
+const ORDERS_API_URL = 'https://script.google.com/macros/s/AKfycbw1LUXQyMLDnhDV-SqQG8PYZwPLUWPgrZt9DOk_bYcNcP2IAmQqeFSJ_N6YL4uYK9WXaQ/exec';
 
 const SESSION_KEY = 'zingo_admin_session';
-const SESSION_MS = 8 * 60 * 60 * 1000; // 8 hours — change to tune how long a login lasts
 
 const STATUS_LABELS = {
   placed: 'New', confirmed: 'Confirmed', preparing: 'Preparing',
@@ -205,27 +186,38 @@ let orders = [];
 let pollTimer = null;
 let lockTimer = null;
 let cancelledShown = false;
-
-async function sha256Hex(str){
-  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
-  return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2,'0')).join('');
-}
+let authToken = null; // issued by the server on login — sent with every admin request
 
 async function tryUnlock(){
   const val = document.getElementById('gate-input').value;
-  const hash = await sha256Hex(val);
-  if(hash === ADMIN_PASSCODE_HASH){
-    const exp = Date.now() + SESSION_MS;
-    localStorage.setItem(SESSION_KEY, JSON.stringify({ exp }));
-    startSession(exp);
-  } else {
-    document.getElementById('gate-err').style.display = 'block';
+  const errEl = document.getElementById('gate-err');
+  errEl.style.display = 'none';
+  try{
+    const res = await fetch(ORDERS_API_URL, {
+      method:'POST',
+      headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body: JSON.stringify({ action:'login', passcode: val })
+    });
+    const data = await res.json();
+    if(data && data.authenticated && data.token){
+      const exp = Date.now() + (data.expiresInSeconds || 21600) * 1000;
+      localStorage.setItem(SESSION_KEY, JSON.stringify({ exp, token: data.token }));
+      startSession(exp, data.token);
+    } else {
+      errEl.textContent = 'Wrong passcode. Try again.';
+      errEl.style.display = 'block';
+    }
+  }catch(err){
+    errEl.textContent = "Couldn't reach the server to check your passcode. Check your connection and try again.";
+    errEl.style.display = 'block';
   }
 }
 
-function startSession(exp){
+function startSession(exp, token){
+  authToken = token;
   document.getElementById('gate').style.display = 'none';
   document.getElementById('dashboard').classList.add('show');
+  renderBoard(); // shell visible immediately, even before the first fetch resolves
   loadOrders();
   pollTimer = setInterval(loadOrders, 20000);
   const msLeft = exp - Date.now();
@@ -233,6 +225,7 @@ function startSession(exp){
 }
 
 function lockNow(){
+  authToken = null;
   localStorage.removeItem(SESSION_KEY);
   if(pollTimer) clearInterval(pollTimer);
   if(lockTimer) clearTimeout(lockTimer);
@@ -246,9 +239,9 @@ function checkExistingSession(){
   try{
     const raw = localStorage.getItem(SESSION_KEY);
     if(!raw) return;
-    const { exp } = JSON.parse(raw);
-    if(exp && exp > Date.now()){
-      startSession(exp);
+    const { exp, token } = JSON.parse(raw);
+    if(exp && exp > Date.now() && token){
+      startSession(exp, token);
     } else {
       localStorage.removeItem(SESSION_KEY);
     }
@@ -291,28 +284,51 @@ function setOrderField(id, field, value){
 }
 
 /* ---------------- data ---------------- */
+function showConnBanner(msg){
+  const el = document.getElementById('conn-banner');
+  el.textContent = '⚠ ' + msg;
+  el.style.display = 'block';
+}
+function hideConnBanner(){
+  document.getElementById('conn-banner').style.display = 'none';
+}
+
 async function loadOrders(){
   const infoEl = document.getElementById('refresh-info');
+
   if(!ORDERS_API_URL || ORDERS_API_URL.includes('PASTE_YOUR')){
-    document.getElementById('main-content').innerHTML = `
-      <div class="state-msg">
-        No orders API connected yet.<br><br>
-        Open <code>zingo-orders-backend.gs.txt</code> for the 5-minute setup,
-        then paste your Apps Script URL into the <code>ORDERS_API_URL</code>
-        constant near the top of this file's &lt;script&gt; tag.
-      </div>`;
+    showConnBanner("No orders API connected yet — paste your Apps Script URL into ORDERS_API_URL near the top of this file's <script> tag.");
+    renderBoard();
     return;
   }
+
+  infoEl.textContent = 'Refreshing…';
   try{
-    infoEl.textContent = 'Refreshing…';
-    const res = await fetch(ORDERS_API_URL);
-    orders = (await res.json()).filter(o => o && o.id && o.id !== 'Order ID');
-    renderBoard();
+    const res = await fetch(ORDERS_API_URL + '?token=' + encodeURIComponent(authToken || ''));
+    if(!res.ok){
+      const bodyText = await res.text().catch(()=>'');
+      throw new Error(`HTTP ${res.status} ${res.statusText} — ${bodyText.slice(0,300)}`);
+    }
+    const raw = await res.json();
+    if(raw && raw.error === 'unauthorized'){
+      lockNow(); // server-side session expired or was never valid — send back to the login screen
+      return;
+    }
+    if(!Array.isArray(raw)){
+      throw new Error('Expected a list of orders but got: ' + JSON.stringify(raw).slice(0,300));
+    }
+    orders = raw.filter(o => o && o.id && o.id !== 'Order ID');
+    hideConnBanner();
     infoEl.textContent = 'Updated ' + new Date().toLocaleTimeString('en-IN', {hour:'2-digit', minute:'2-digit'});
   }catch(err){
+    console.error('=== ZINGO ADMIN: order fetch failed ===');
+    console.error('Target Fetch URL:', ORDERS_API_URL);
+    console.error('Error Message:', err.message);
+    console.error('Error Stack:', err.stack);
     infoEl.textContent = 'Refresh failed';
-    document.getElementById('main-content').innerHTML = `<div class="state-msg">Couldn't load orders. Check your internet connection or the Apps Script URL, then tap ⟳ to retry.</div>`;
+    showConnBanner('Refresh failed: ' + err.message + ' — tap ⟳ to retry. Full details are in your browser console (F12 → Console tab).');
   }
+  renderBoard(); // always render the board shell, whether this load succeeded or not
 }
 
 /* ---------------- rendering ---------------- */
@@ -364,7 +380,8 @@ function buildCard(o){
 
 function renderBoard(){
   const pending = orders.filter(o => ['placed','confirmed'].includes(o.status || 'placed'));
-  const preparing = orders.filter(o => ['preparing','out'].includes(o.status));
+  const preparing = orders.filter(o => o.status === 'preparing');
+  const outForDelivery = orders.filter(o => o.status === 'out');
   const delivered = orders.filter(o => o.status === 'delivered');
   const cancelled = orders.filter(o => o.status === 'cancelled');
 
@@ -375,15 +392,12 @@ function renderBoard(){
     </div>`;
 
   const main = document.getElementById('main-content');
-  if(orders.length === 0){
-    main.innerHTML = `<div class="state-msg">No orders here yet.</div>`;
-  } else {
-    main.innerHTML = `<div class="kanban">
-      ${col('pending','Pending', pending)}
-      ${col('preparing','Preparing', preparing)}
-      ${col('delivered','Delivered', delivered)}
-    </div>`;
-  }
+  main.innerHTML = `<div class="kanban">
+    ${col('pending','Pending', pending)}
+    ${col('preparing','Preparing', preparing)}
+    ${col('outfordelivery','Out for Delivery', outForDelivery)}
+    ${col('delivered','Delivered', delivered)}
+  </div>`;
 
   const toggleBtn = document.getElementById('cancelled-toggle');
   if(cancelled.length){
@@ -412,17 +426,23 @@ async function advanceStatus(id, newStatus){
 
 async function pushOrderUpdate(order){
   try{
-    await fetch(ORDERS_API_URL, {
+    const res = await fetch(ORDERS_API_URL, {
       method:'POST',
       headers:{'Content-Type':'text/plain;charset=utf-8'},
       body: JSON.stringify({
         id: order.id, status: order.status, name: order.name, phone: order.phone,
         address: order.address, items: order.items, total: order.total, method: order.method,
-        rider: order.rider || '', paymentStatus: order.paymentStatus || 'Cash on Delivery'
+        rider: order.rider || '', paymentStatus: order.paymentStatus || 'Cash on Delivery',
+        token: authToken
       })
     });
+    const data = await res.json().catch(()=>null);
+    if(data && data.error === 'unauthorized'){
+      lockNow(); // session expired mid-use — send back to login rather than pretending it saved
+    }
   }catch(err){
-    // silent fail — next auto-refresh will resync from the sheet
+    console.error('=== ZINGO ADMIN: update did not save ===', order.id, err.message);
+    // next auto-refresh will resync from the sheet either way
   }
 }
 
