@@ -1,163 +1,431 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Zingo — Admin Orders</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <style>
-  :root{
-    --ink:#1b1b18; --steel:#26251f; --steel-2:#312f27;
-    --turmeric:#f0a532; --turmeric-dim:#a8762b; --chili:#b23a2e;
-    --zyellow:#ffc72c; --off:#f3efe4; --off-dim:#c9c4b6; --radius:14px;
-  }
-  *{box-sizing:border-box; margin:0; padding:0;}
-  body{background:var(--ink); color:var(--off); font-family:'Space Grotesk', sans-serif; min-height:100vh; -webkit-font-smoothing:antialiased;}
-  .display{font-family:'Archivo Black', sans-serif;}
-  .mono{font-family:'Space Mono', monospace;}
-  #app{max-width:900px; margin:0 auto; min-height:100vh; padding-bottom:40px;}
+:root{
+  --bg:#0b0d0c; --panel:#121513; --panel-2:#171a18; --panel-3:#1d211e;
+  --line:#282d29; --text:#f6f5f0; --muted:#9a9f99; --dim:#646b65;
+  --orange:#ff6b00; --orange-2:#ff8a2a; --green:#37c978; --red:#ef5b5b;
+  --yellow:#ffc72c; --blue:#70bfe9; --radius:16px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{min-height:100%;background:var(--bg);color:var(--text);font-family:'Space Grotesk',sans-serif;-webkit-font-smoothing:antialiased}
+button,input,select{font:inherit}
+button{cursor:pointer}
+.display{font-family:'Archivo Black',sans-serif}
+.mono{font-family:'Space Mono',monospace}
+#app{min-height:100vh}
 
-  /* ---------- gate ---------- */
-  #gate{min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:24px; text-align:center;}
-  #gate .bolt{width:46px; height:46px; margin-bottom:18px;}
-  #gate h1{font-size:20px; margin-bottom:6px;}
-  #gate p{font-size:12.5px; color:var(--off-dim); margin-bottom:22px; max-width:32ch; font-family:'Space Mono',monospace;}
-  #gate input{
-    width:100%; max-width:260px; background:var(--steel); border:1.5px solid #3a382d; color:var(--off);
-    padding:13px 14px; border-radius:10px; font-size:15px; text-align:center; letter-spacing:0.15em;
-    font-family:'Space Mono',monospace; outline:none; margin-bottom:14px;
-  }
-  #gate input:focus{border-color:var(--turmeric);}
-  #gate button{
-    background:var(--turmeric); color:var(--ink); border:none; padding:13px 28px; border-radius:10px;
-    font-size:14px; font-weight:700; cursor:pointer; font-family:inherit;
-  }
-  #gate .gerr{color:var(--chili); font-size:12px; margin-top:10px; font-family:'Space Mono',monospace; display:none;}
-  #gate .gnote{font-size:10.5px; color:#6b6858; margin-top:26px; max-width:34ch; line-height:1.5; font-family:'Space Mono',monospace;}
 
-  /* ---------- shell ---------- */
-  #dashboard{display:none;}
-  #dashboard.show{display:block;}
-  header.top{padding:16px 20px; display:flex; align-items:center; gap:12px; border-bottom:1px solid #38362c; position:sticky; top:0; background:var(--ink); z-index:30;}
-  .bolt{flex-shrink:0;}
-  .brand{display:flex; flex-direction:column; line-height:1;}
-  .brand .name{font-size:18px;}
-  .brand .tag{font-size:10px; color:var(--off-dim); text-transform:uppercase; letter-spacing:0.14em; margin-top:4px; font-family:'Space Mono',monospace;}
-  .refresh-info{margin-left:auto; text-align:right; font-family:'Space Mono',monospace; font-size:10px; color:#6b6858;}
-  .icon-btn{background:var(--steel); border:1px solid #3a382d; color:var(--turmeric); width:34px; height:34px; border-radius:8px; cursor:pointer; font-size:14px; margin-left:8px; flex-shrink:0;}
-  .icon-btn.logout{color:var(--chili); font-size:11px; font-weight:700; width:auto; padding:0 12px; font-family:'Space Mono',monospace;}
+/* NEW ORDER NOTIFICATIONS / CONNECTION STATUS */
+.api-live-wrap{display:flex;align-items:center;gap:8px;margin-left:auto;margin-right:8px}
+.api-live{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);background:var(--panel-2);padding:7px 10px;border-radius:999px;font:10px 'Space Mono',monospace;letter-spacing:.08em;text-transform:uppercase}
+.api-live .dot{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 0 4px rgba(55,201,120,.10)}
+.api-live.offline{color:#ff8f8f;border-color:rgba(239,91,91,.35)}
+.api-live.offline .dot{background:var(--red);box-shadow:0 0 0 4px rgba(239,91,91,.10)}
+.api-live.live{color:#9ff0be}
+.new-order-toast-stack{position:fixed;right:22px;top:76px;z-index:9999;display:flex;flex-direction:column;gap:10px;pointer-events:none;width:min(390px,calc(100vw - 28px))}
+.new-order-toast{pointer-events:auto;background:linear-gradient(135deg,#171a18,#101310);border:1px solid rgba(255,107,0,.55);box-shadow:0 16px 45px rgba(0,0,0,.45),0 0 0 1px rgba(255,107,0,.08) inset;border-radius:15px;padding:14px 15px;animation:newToastIn .25s ease-out}
+.new-order-toast .toast-top{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.new-order-toast .toast-label{font:10px 'Space Mono',monospace;color:#ff9a54;letter-spacing:.12em;font-weight:700}
+.new-order-toast .toast-close{background:none;border:0;color:var(--muted);font-size:18px;line-height:1}
+.new-order-toast .toast-title{font-size:16px;font-weight:800;margin-top:6px}
+.new-order-toast .toast-meta{font:11px 'Space Mono',monospace;color:var(--muted);margin-top:5px}
+.new-order-toast .toast-action{display:inline-flex;margin-top:10px;background:var(--orange);color:#111;border:0;border-radius:8px;padding:8px 11px;font-size:11px;font-weight:800}
+@keyframes newToastIn{from{opacity:0;transform:translateY(-8px) scale(.98)}to{opacity:1;transform:none}}
+@keyframes newOrderPulse{0%,100%{box-shadow:0 0 0 1px rgba(255,107,0,.25),0 0 0 rgba(255,107,0,0)}50%{box-shadow:0 0 0 1px rgba(255,107,0,.7),0 0 24px rgba(255,107,0,.14)}}
+.order-card.new-order-highlight{border-color:rgba(255,107,0,.75)!important;animation:newOrderPulse 1.8s ease-in-out infinite}
+.nav-count.has-new{background:var(--orange);color:#111;box-shadow:0 0 0 4px rgba(255,107,0,.08)}
 
-  main{padding:14px 0 4px;}
+/* LOGIN */
+#gate{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;text-align:center;background:radial-gradient(circle at 50% 35%,#1a160f 0,#0b0d0c 45%)}
+#gate .bolt{width:54px;height:54px;margin-bottom:20px}
+#gate h1{font-size:25px;letter-spacing:.01em;margin-bottom:7px}
+#gate p{font-size:12px;color:var(--muted);margin-bottom:22px;font-family:'Space Mono',monospace}
+#gate input{width:100%;max-width:300px;background:var(--panel-2);border:1px solid var(--line);color:var(--text);padding:14px 15px;border-radius:11px;font-size:15px;text-align:center;letter-spacing:.15em;outline:none;margin-bottom:12px}
+#gate input:focus{border-color:var(--orange);box-shadow:0 0 0 3px rgba(255,107,0,.12)}
+#gate button{background:var(--orange);color:#111;border:0;padding:13px 30px;border-radius:11px;font-size:14px;font-weight:800}
+#gate .gerr{color:#ff8a8a;font-size:12px;margin-top:10px;font-family:'Space Mono',monospace;display:none}
+#gate .gnote{font-size:10px;color:var(--dim);margin-top:25px;max-width:42ch;line-height:1.6;font-family:'Space Mono',monospace}
 
-  .state-msg{text-align:center; padding:50px 20px; color:var(--off-dim); font-size:13px; line-height:1.6;}
-  .state-msg code{background:var(--steel); padding:2px 6px; border-radius:5px; font-family:'Space Mono',monospace; font-size:11.5px;}
+/* APP SHELL */
+#dashboard{display:none}
+#dashboard.show{display:flex;min-height:100vh}
+.sidebar{width:248px;flex:0 0 248px;border-right:1px solid var(--line);background:#0e110f;padding:22px 14px;position:fixed;inset:0 auto 0 0;z-index:50;display:flex;flex-direction:column}
+.side-brand{display:flex;align-items:center;gap:11px;padding:0 10px 24px}
+.side-brand .bolt{width:32px;height:32px;flex:none}
+.side-brand .brand-main{font-size:21px;line-height:1}
+.side-brand .brand-sub{display:block;color:var(--muted);font-size:9px;letter-spacing:.14em;text-transform:uppercase;font-family:'Space Mono',monospace;margin-top:5px}
+.side-label{font-size:9px;color:var(--dim);font-family:'Space Mono',monospace;text-transform:uppercase;letter-spacing:.15em;padding:10px 12px 8px}
+.nav{display:flex;flex-direction:column;gap:3px;overflow:auto;padding-right:2px}
+.nav-btn{width:100%;border:1px solid transparent;background:transparent;color:#b9bdb8;text-align:left;padding:10px 11px;border-radius:10px;font-size:12.5px;font-weight:600;display:flex;align-items:center;gap:10px;transition:.18s}
+.nav-btn:hover{background:var(--panel-2);color:var(--text)}
+.nav-btn.active{background:rgba(255,107,0,.12);border-color:rgba(255,107,0,.22);color:#fff}
+.nav-ico{width:18px;text-align:center;color:var(--muted);font-size:13px}
+.nav-btn.active .nav-ico{color:var(--orange)}
+.nav-count{margin-left:auto;min-width:22px;text-align:center;padding:2px 6px;border-radius:10px;background:var(--panel-3);color:var(--muted);font:10px 'Space Mono',monospace}
+.side-footer{margin-top:auto;border-top:1px solid var(--line);padding:15px 8px 0}
+.status-live{display:flex;align-items:center;gap:8px;color:#aeb4ae;font-size:11px}
+.live-dot{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 0 4px rgba(55,201,120,.1)}
+.side-footer small{display:block;color:var(--dim);font:9px 'Space Mono',monospace;margin-top:7px}
 
-  /* ---------- kanban ---------- */
-  .kanban{display:flex; gap:14px; overflow-x:auto; scroll-snap-type:x mandatory; padding:2px 20px 10px; -webkit-overflow-scrolling:touch;}
-  .kcol{flex:0 0 86vw; max-width:380px; scroll-snap-align:start;}
-  .kcol-head{display:flex; align-items:center; gap:8px; position:sticky; top:0; background:var(--ink); padding:6px 0 12px; z-index:5;}
-  .kcol-dot{width:8px; height:8px; border-radius:50%; flex-shrink:0;}
-  .kcol-pending .kcol-dot{background:var(--zyellow);}
-  .kcol-preparing .kcol-dot{background:var(--turmeric);}
-  .kcol-outfordelivery .kcol-dot{background:#7ec3e8;}
-  .kcol-delivered .kcol-dot{background:#7ec37e;}
-  .kcol-title{font-size:13.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.08em;}
-  .kcol-count{margin-left:auto; font-family:'Space Mono',monospace; font-size:11px; color:var(--off-dim); background:var(--steel); padding:2px 9px; border-radius:10px;}
-  .kcol-body{min-height:60px;}
-  .kcol-empty{color:#6b6858; font-size:12px; font-family:'Space Mono',monospace; padding:20px 4px; text-align:center;}
+.workspace{width:calc(100% - 248px);margin-left:248px;min-width:0}
+header.top{height:72px;padding:0 28px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:14px;background:rgba(11,13,12,.92);backdrop-filter:blur(12px);position:sticky;top:0;z-index:40}
+.mobile-menu{display:none}
+.top-title{display:flex;flex-direction:column;gap:2px}
+.top-title strong{font-size:17px}
+.top-title span{font-size:10px;color:var(--muted);font-family:'Space Mono',monospace}
+.refresh-info{margin-left:auto;text-align:right;font:10px 'Space Mono',monospace;color:var(--muted)}
+.icon-btn{background:var(--panel-2);border:1px solid var(--line);color:var(--orange);width:38px;height:38px;border-radius:10px;cursor:pointer;font-size:16px;margin-left:4px}
+.icon-btn:hover{border-color:#4a4036;background:var(--panel-3)}
+.icon-btn.logout{color:#ff8a8a;font-size:11px;font-weight:700;width:auto;padding:0 13px;font-family:'Space Mono',monospace}
+main{padding:26px 28px 50px;max-width:1500px;margin:0 auto}
 
-  .order-card{background:var(--steel); border:1px solid #3a382d; border-radius:var(--radius); padding:16px 18px; margin-bottom:14px;}
-  .oc-top{display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px;}
-  .oc-id{font-family:'Space Mono',monospace; font-size:12.5px; color:var(--turmeric); font-weight:700;}
-  .oc-time{font-family:'Space Mono',monospace; font-size:10.5px; color:#6b6858; margin-top:3px;}
-  .status-badge{
-    font-family:'Space Mono',monospace; font-size:10px; font-weight:700; text-transform:uppercase;
-    padding:4px 10px; border-radius:12px; letter-spacing:0.05em; white-space:nowrap;
-  }
-  .status-placed{background:#3a382d; color:var(--zyellow);}
-  .status-confirmed{background:#3a382d; color:#7ec3e8;}
-  .status-preparing{background:rgba(240,165,50,0.15); color:var(--turmeric);}
-  .status-out{background:rgba(126,195,126,0.15); color:#7ec37e;}
-  .status-delivered{background:rgba(126,195,126,0.25); color:#7ec37e;}
-  .status-cancelled{background:rgba(178,58,46,0.2); color:#e08074;}
+/* CONNECTION */
+#conn-banner{margin:0 0 18px!important;background:rgba(239,91,91,.09)!important;border:1px solid rgba(239,91,91,.25)!important;color:#ff9b9b!important}
 
-  .oc-name{font-size:14.5px; font-weight:700; margin-bottom:2px;}
-  .oc-phone{font-size:12px; color:var(--off-dim); font-family:'Space Mono',monospace; margin-bottom:8px;}
-  .oc-phone a{color:inherit; text-decoration:none;}
-  .oc-addr{font-size:12.5px; color:var(--off-dim); line-height:1.4; margin-bottom:10px;}
-  .oc-items{font-size:12.5px; line-height:1.6; margin-bottom:10px; color:var(--off);}
-  .oc-foot{display:flex; justify-content:space-between; align-items:center; border-top:1px dashed #3a382d; padding-top:10px; margin-top:2px;}
-  .oc-total{font-family:'Space Mono',monospace; font-weight:700; font-size:14.5px; color:var(--turmeric);}
-  .oc-method{font-size:10.5px; color:var(--off-dim); font-family:'Space Mono',monospace; text-transform:uppercase;}
+/* DASHBOARD */
+.page-head{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;margin-bottom:22px}
+.page-kicker{font:9px 'Space Mono',monospace;color:var(--orange);letter-spacing:.16em;text-transform:uppercase;margin-bottom:7px}
+.page-title{font-size:28px;line-height:1.05;letter-spacing:-.02em}
+.page-sub{font-size:12px;color:var(--muted);margin-top:7px}
+.page-actions{display:flex;gap:8px}
+.primary-btn{background:var(--orange);border:1px solid var(--orange);color:#111;font-weight:800;border-radius:10px;padding:10px 14px;font-size:12px}
+.secondary-btn{background:var(--panel-2);border:1px solid var(--line);color:var(--text);border-radius:10px;padding:10px 14px;font-size:12px}
 
-  .oc-meta{display:flex; gap:8px; margin-top:12px;}
-  .oc-meta select{
-    flex:1; background:var(--ink); border:1.5px solid #3a382d; color:var(--off); font-family:'Space Mono',monospace;
-    font-size:11px; padding:8px 6px; border-radius:8px; outline:none;
-  }
-  .oc-meta label{display:block; font-size:9.5px; color:#6b6858; text-transform:uppercase; letter-spacing:0.06em; margin-bottom:4px; font-family:'Space Mono',monospace;}
+.stats-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:26px}
+.stat-card{background:linear-gradient(180deg,#151916,#111411);border:1px solid var(--line);border-radius:15px;padding:17px 18px;min-height:112px;position:relative;overflow:hidden}
+.stat-card:after{content:'';position:absolute;width:80px;height:80px;border-radius:50%;right:-35px;bottom:-45px;background:rgba(255,107,0,.08)}
+.stat-label{color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.1em;font-weight:700}
+.stat-value{font-size:26px;font-weight:800;letter-spacing:-.02em;margin-top:13px}
+.stat-note{font:9px 'Space Mono',monospace;color:var(--dim);margin-top:6px}
+.stat-accent{color:var(--orange)}
+.stat-green{color:var(--green)}
+.stat-red{color:var(--red)}
 
-  .oc-actions{display:flex; gap:8px; margin-top:12px; flex-wrap:wrap;}
-  .act-btn{
-    flex:1; min-width:110px; background:var(--turmeric); color:var(--ink); border:none; padding:9px 10px;
-    border-radius:9px; font-size:12px; font-weight:700; cursor:pointer; font-family:inherit;
-  }
-  .act-btn.secondary{background:transparent; border:1.5px solid #3a382d; color:var(--off-dim);}
-  .act-btn:active{transform:scale(0.97);}
+.section-head{display:flex;align-items:center;justify-content:space-between;margin:0 0 12px}
+.section-head h2{font-size:15px}
+.section-head span{font:10px 'Space Mono',monospace;color:var(--muted)}
 
-  .wa-btn{
-    display:inline-flex; align-items:center; gap:6px; background:#25D366; color:#fff; border:none;
-    padding:9px 12px; border-radius:9px; font-size:12px; font-weight:700; cursor:pointer; font-family:inherit;
-  }
+/* ORDER BOARD */
+.kanban{display:grid;grid-template-columns:repeat(4,minmax(230px,1fr));gap:12px;padding:0;overflow:visible}
+.kcol{min-width:0;background:#0e110f;border:1px solid var(--line);border-radius:15px;padding:12px}
+.kcol-head{display:flex;align-items:center;gap:8px;padding:2px 2px 12px;border-bottom:1px solid var(--line);margin-bottom:11px}
+.kcol-dot{width:8px;height:8px;border-radius:50%;flex:none}
+.kcol-pending .kcol-dot{background:var(--yellow)}
+.kcol-preparing .kcol-dot{background:var(--orange)}
+.kcol-outfordelivery .kcol-dot{background:var(--blue)}
+.kcol-delivered .kcol-dot{background:var(--green)}
+.kcol-title{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.08em}
+.kcol-count{margin-left:auto;font:10px 'Space Mono',monospace;color:var(--muted);background:var(--panel-3);padding:3px 8px;border-radius:10px}
+.kcol-body{min-height:90px}
+.kcol-empty{color:var(--dim);font-size:11px;font-family:'Space Mono',monospace;padding:34px 4px;text-align:center}
 
-  /* ---------- cancelled drawer ---------- */
-  .cancelled-toggle{
-    display:block; width:calc(100% - 40px); margin:6px 20px 20px; background:var(--steel); border:1px dashed #3a382d;
-    color:var(--off-dim); padding:11px; border-radius:10px; font-size:12px; font-family:'Space Mono',monospace; cursor:pointer;
-  }
-  #cancelled-list{display:none; padding:0 20px;}
-  #cancelled-list.show{display:block;}
+.order-card{background:var(--panel-2);border:1px solid var(--line);border-radius:13px;padding:14px;margin-bottom:10px;box-shadow:0 8px 22px rgba(0,0,0,.12)}
+.order-card:hover{border-color:#343a35}
+.oc-top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:11px}
+.oc-id{font:700 11px 'Space Mono',monospace;color:var(--orange)}
+.oc-time{font:9px 'Space Mono',monospace;color:var(--dim);margin-top:4px}
+.status-badge{font:700 8.5px 'Space Mono',monospace;text-transform:uppercase;padding:4px 7px;border-radius:9px;letter-spacing:.04em;white-space:nowrap}
+.status-placed{background:rgba(255,199,44,.11);color:var(--yellow)}
+.status-confirmed{background:rgba(112,191,233,.11);color:var(--blue)}
+.status-preparing{background:rgba(255,107,0,.12);color:var(--orange-2)}
+.status-ready{background:rgba(55,201,120,.12);color:var(--green)}
+.status-out{background:rgba(112,191,233,.12);color:var(--blue)}
+.status-delivered{background:rgba(55,201,120,.14);color:var(--green)}
+.status-cancelled{background:rgba(239,91,91,.12);color:#ff9292}
+.oc-name{font-size:13.5px;font-weight:800;margin-bottom:3px}
+.oc-phone{font-size:10px;color:var(--muted);font-family:'Space Mono',monospace;margin-bottom:8px}
+.oc-phone a{color:inherit;text-decoration:none}
+.oc-addr{font-size:10.5px;color:#aeb4ae;line-height:1.45;margin-bottom:9px}
+.oc-items{font-size:11px;line-height:1.55;margin-bottom:10px;color:#e8e9e5}
+.oc-foot{display:flex;justify-content:space-between;align-items:center;border-top:1px dashed #2c312d;padding-top:10px;margin-top:2px}
+.oc-total{font:700 13px 'Space Mono',monospace;color:var(--orange-2)}
+.oc-method{font:9px 'Space Mono',monospace;color:var(--muted);text-transform:uppercase}
+.oc-meta{display:flex;gap:7px;margin-top:11px}
+.oc-meta>div{flex:1;min-width:0}
+.oc-meta select{width:100%;background:var(--bg);border:1px solid var(--line);color:var(--text);font:9px 'Space Mono',monospace;padding:7px 6px;border-radius:8px;outline:none}
+.oc-meta label{display:block;font:8px 'Space Mono',monospace;color:var(--dim);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px}
+.oc-actions{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
+.act-btn{flex:1;min-width:90px;background:var(--orange);color:#111;border:1px solid var(--orange);padding:8px 9px;border-radius:8px;font-size:10px;font-weight:800}
+.act-btn.secondary{background:transparent;border-color:var(--line);color:#aeb4ae}
+.act-btn:active{transform:scale(.98)}
+.wa-btn{display:inline-flex;align-items:center;gap:5px;background:#1da956;color:#fff;border:0;padding:8px 10px;border-radius:8px;font-size:10px;font-weight:800}
+
+
+/* ENHANCED ORDER MANAGEMENT */
+.order-management-board{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;align-items:start}
+.order-lane{background:#0d100e;border:1px solid var(--line);border-radius:16px;overflow:hidden;min-width:0}
+.order-lane-head{display:flex;align-items:center;gap:9px;padding:14px 15px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,#151916,#101311)}
+.order-lane-dot{width:9px;height:9px;border-radius:50%;flex:none}
+.lane-new .order-lane-dot{background:var(--yellow);box-shadow:0 0 0 4px rgba(255,199,44,.08)}
+.lane-preparing .order-lane-dot{background:var(--orange);box-shadow:0 0 0 4px rgba(255,107,0,.08)}
+.lane-ready .order-lane-dot{background:var(--green);box-shadow:0 0 0 4px rgba(55,201,120,.08)}
+.lane-out .order-lane-dot{background:var(--blue);box-shadow:0 0 0 4px rgba(112,191,233,.08)}
+.lane-delivered .order-lane-dot{background:var(--green);box-shadow:0 0 0 4px rgba(55,201,120,.08)}
+.lane-cancelled .order-lane-dot{background:var(--red);box-shadow:0 0 0 4px rgba(239,91,91,.08)}
+.order-lane-title{font-size:10px;font-weight:900;letter-spacing:.09em;text-transform:uppercase}
+.order-lane-count{margin-left:auto;min-width:24px;text-align:center;padding:4px 7px;border-radius:999px;background:#1b1f1c;color:#d9ddd8;font:700 10px 'Space Mono',monospace}
+.order-lane-body{padding:10px;min-height:110px}
+.order-lane-body .order-card{margin-bottom:9px}
+.order-lane-body .order-card:last-child{margin-bottom:0}
+.order-empty{padding:34px 10px;text-align:center;color:var(--dim);font:10px 'Space Mono',monospace}
+.order-card{position:relative;background:linear-gradient(180deg,#171b18,#121513);border:1px solid #2a302b;border-radius:14px;padding:15px;margin-bottom:10px;box-shadow:0 10px 28px rgba(0,0,0,.18)}
+.order-card:hover{border-color:#3b433d;transform:translateY(-1px);transition:.16s ease}
+.order-card.is-new{border-color:rgba(255,199,44,.28)}
+.order-card.is-cancelled{border-color:rgba(239,91,91,.25);opacity:.94}
+.oc-headline{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.oc-time-row{display:flex;align-items:center;gap:7px;margin-top:5px}
+.oc-live-dot{width:5px;height:5px;border-radius:50%;background:var(--green)}
+.oc-customer{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin:14px 0 10px}
+.oc-customer-badge{font:8px 'Space Mono',monospace;color:var(--muted);text-transform:uppercase;padding:5px 7px;border:1px solid var(--line);border-radius:7px;white-space:nowrap}
+.oc-items-box{border:1px solid #242a26;border-radius:10px;background:#101310;padding:9px 10px;margin-bottom:10px}
+.oc-items-title{display:flex;justify-content:space-between;align-items:center;font:8px 'Space Mono',monospace;color:var(--dim);text-transform:uppercase;letter-spacing:.08em;margin-bottom:7px}
+.oc-items-title strong{color:#b9beb9;font-weight:700}
+.oc-item-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;padding:6px 0;border-top:1px solid #202520;font-size:10.5px}
+.oc-item-row:first-of-type{border-top:0}
+.oc-item-name{color:#f0f1ed;line-height:1.35}
+.oc-item-qty{color:var(--orange-2);font:700 9px 'Space Mono',monospace;white-space:nowrap}
+.oc-items-raw{font-size:10.5px;line-height:1.5;color:#e7e9e5}
+.oc-address{display:flex;gap:8px;align-items:flex-start;padding:8px 9px;border-radius:9px;background:#111512;border:1px solid #222823;margin-bottom:10px;color:#aeb4ae;font-size:9.5px;line-height:1.45}
+.oc-address-icon{color:var(--orange);flex:none}
+.oc-breakdown{border-top:1px dashed #303630;padding-top:9px;display:flex;flex-direction:column;gap:5px}
+.oc-money-row{display:flex;justify-content:space-between;gap:10px;font-size:9.5px;color:#aeb4ae}
+.oc-money-row span:last-child{font-family:'Space Mono',monospace;color:#dfe2de}
+.oc-money-row.discount span:last-child{color:var(--green)}
+.oc-money-row.total{margin-top:3px;padding-top:8px;border-top:1px solid #2b302c;font-size:12px;font-weight:800;color:#fff}
+.oc-money-row.total span:last-child{color:var(--orange-2);font-size:13px}
+.oc-payment-row{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:10px;padding:8px 9px;border-radius:9px;background:rgba(55,201,120,.055);border:1px solid rgba(55,201,120,.13)}
+.oc-payment-label{font:8px 'Space Mono',monospace;color:var(--dim);text-transform:uppercase;letter-spacing:.08em}
+.oc-payment-value{font:800 9px 'Space Mono',monospace;color:#dfe8e1;text-transform:uppercase}
+.oc-status-row{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:10px}
+
+.workflow-strip{display:flex;align-items:center;gap:4px;margin:12px 0 14px;padding:8px 9px;border:1px solid var(--line);background:rgba(255,255,255,.025);border-radius:13px;overflow-x:auto}
+.workflow-step{appearance:none;border:0;background:transparent;color:var(--dim);display:flex;align-items:center;gap:5px;padding:4px 3px;white-space:nowrap;font:9px 'Space Mono',monospace;text-transform:uppercase;letter-spacing:.03em}
+.workflow-step:hover{color:var(--text)}
+.workflow-step-dot{width:20px;height:20px;border:1px solid var(--line);border-radius:50%;display:grid;place-items:center;font-size:8px;flex:0 0 auto}
+.workflow-step.active{color:var(--orange);font-weight:700}
+.workflow-step.active .workflow-step-dot{border-color:var(--orange);background:rgba(255,107,0,.14);box-shadow:0 0 0 3px rgba(255,107,0,.06)}
+.workflow-step.done{color:var(--green)}
+.workflow-step.done .workflow-step-dot{border-color:var(--green);background:rgba(55,201,120,.12)}
+.workflow-line{height:1px;min-width:12px;background:var(--line)}
+.workflow-line.done{background:var(--green)}
+.workflow-cancelled{justify-content:center}
+.workflow-cancelled-label{font:10px 'Space Mono',monospace;color:var(--red);font-weight:700;letter-spacing:.08em}
+.workflow-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--red);margin-right:5px}
+
+.oc-status-label{font:8px 'Space Mono',monospace;color:var(--dim);text-transform:uppercase}
+.oc-actions{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:11px}
+.oc-actions .act-btn{min-width:0}
+.act-btn.primary-action{background:var(--orange);border-color:var(--orange);color:#111}
+.act-btn.success-action{background:var(--green);border-color:var(--green);color:#07120b}
+.act-btn.danger-action{background:rgba(239,91,91,.08);border-color:rgba(239,91,91,.3);color:#ff9696}
+.act-btn.full-action{grid-column:1/-1}
+.wa-btn{grid-column:1/-1;justify-content:center}
+.order-management-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 15px;margin-bottom:12px;background:#0e110f;border:1px solid var(--line);border-radius:14px}
+.order-management-toolbar .toolbar-left{display:flex;align-items:center;gap:10px;min-width:0}
+.order-management-toolbar .toolbar-title{font-size:12px;font-weight:800}
+.order-management-toolbar .toolbar-note{font:9px 'Space Mono',monospace;color:var(--dim)}
+.order-management-toolbar .search{width:min(300px,45vw);background:var(--bg);border:1px solid var(--line);color:var(--text);border-radius:9px;padding:9px 11px;outline:none;font-size:10px}
+.order-management-toolbar .search:focus{border-color:rgba(255,107,0,.55)}
+@media(max-width:1200px){.order-management-board{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:760px){.order-management-board{grid-template-columns:1fr}.order-management-toolbar{align-items:stretch;flex-direction:column}.order-management-toolbar .search{width:100%}}
+
+/* FILTER / LIST VIEWS */
+.list-wrap{background:#0e110f;border:1px solid var(--line);border-radius:15px;overflow:hidden}
+.list-toolbar{display:flex;align-items:center;gap:10px;padding:13px;border-bottom:1px solid var(--line);background:#111411}
+.list-toolbar .search{flex:1;background:var(--bg);border:1px solid var(--line);color:var(--text);border-radius:9px;padding:9px 11px;outline:none;font-size:11px}
+.list-toolbar .search:focus{border-color:rgba(255,107,0,.55)}
+.order-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;padding:12px}
+.empty-view{text-align:center;padding:65px 20px;color:var(--dim);font:11px 'Space Mono',monospace}
+
+/* SALES */
+.sales-grid{display:grid;grid-template-columns:1.2fr .8fr;gap:12px}
+.sales-card{background:#0e110f;border:1px solid var(--line);border-radius:15px;padding:18px}
+.sales-card h3{font-size:13px;margin-bottom:14px}
+.sales-total{font-size:31px;font-weight:800;color:var(--orange);margin-bottom:4px}
+.sales-note{font:9px 'Space Mono',monospace;color:var(--dim)}
+.metric-row{display:flex;justify-content:space-between;padding:11px 0;border-bottom:1px solid #202520;font-size:11px}
+.metric-row:last-child{border-bottom:0}
+.metric-row span:last-child{font:700 11px 'Space Mono',monospace}
+
+/* PLACEHOLDER */
+.feature-card{background:#0e110f;border:1px solid var(--line);border-radius:15px;padding:30px;max-width:720px}
+.feature-icon{font-size:25px;margin-bottom:13px}
+.feature-card h2{font-size:20px;margin-bottom:7px}
+.feature-card p{font-size:12px;color:var(--muted);line-height:1.6;max-width:60ch}
+.feature-note{display:inline-block;margin-top:16px;padding:7px 10px;border-radius:8px;background:rgba(255,107,0,.09);color:var(--orange-2);font:9px 'Space Mono',monospace}
+
+.cancelled-toggle{display:block;width:100%;margin:14px 0 0;background:var(--panel-2);border:1px dashed #343934;color:var(--muted);padding:10px;border-radius:10px;font-size:10px;font-family:'Space Mono',monospace;cursor:pointer}
+#cancelled-list{display:none;margin-top:10px}
+#cancelled-list.show{display:block}
+
+.state-msg{text-align:center;padding:50px 20px;color:var(--muted);font-size:13px;line-height:1.6}
+.state-msg code{background:var(--panel-2);padding:2px 6px;border-radius:5px;font:11px 'Space Mono',monospace}
+
+@media(max-width:1100px){
+  .stats-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .kanban{grid-template-columns:repeat(2,minmax(250px,1fr))}
+  .sales-grid{grid-template-columns:1fr}
+}
+@media(max-width:760px){
+  #dashboard.show{display:block}
+  .sidebar{transform:translateX(-100%);transition:transform .22s ease;width:250px;box-shadow:20px 0 60px rgba(0,0,0,.4)}
+  .sidebar.open{transform:translateX(0)}
+  .workspace{width:100%;margin-left:0}
+  header.top{height:64px;padding:0 14px}
+  .mobile-menu{display:block;background:var(--panel-2);border:1px solid var(--line);color:var(--text);width:36px;height:36px;border-radius:9px}
+  .top-title strong{font-size:15px}
+  .top-title span{font-size:8px}
+  .refresh-info{font-size:8px}
+  .icon-btn{width:36px;height:36px}
+  .icon-btn.logout{font-size:9px;padding:0 9px}
+  main{padding:20px 14px 40px}
+  .page-head{align-items:flex-start;flex-direction:column;margin-bottom:18px}
+  .page-title{font-size:24px}
+  .stats-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+  .stat-card{padding:14px;min-height:100px}
+  .stat-value{font-size:22px}
+  .kanban{grid-template-columns:1fr;gap:9px}
+  .order-list{grid-template-columns:1fr}
+  .list-toolbar{flex-wrap:wrap}
+}
+@media(max-width:430px){
+  .stats-grid{grid-template-columns:1fr 1fr}
+  .stat-label{font-size:8px}
+  .stat-value{font-size:20px}
+  .stat-note{font-size:7.5px}
+  .page-actions{width:100%}
+  .page-actions button{flex:1}
+}
+
+
+/* ORDER SEARCH / FILTERS / DETAILS */
+.order-filter-bar{display:grid;grid-template-columns:minmax(240px,1.5fr) minmax(150px,.7fr) minmax(150px,.7fr) auto;gap:9px;padding:12px 13px;margin:0 0 14px;background:#0e110f;border:1px solid var(--line);border-radius:14px;align-items:center}
+.order-filter-search,.order-filter-select{width:100%;background:var(--bg);border:1px solid var(--line);color:var(--text);border-radius:9px;padding:10px 11px;outline:none;font-size:11px}
+.order-filter-search:focus,.order-filter-select:focus{border-color:rgba(255,107,0,.55);box-shadow:0 0 0 3px rgba(255,107,0,.06)}
+.order-filter-dates{display:flex;gap:5px;flex-wrap:wrap}
+.date-chip{background:#151916;border:1px solid var(--line);color:var(--muted);border-radius:8px;padding:9px 10px;font-size:9px;font-weight:800;white-space:nowrap}
+.date-chip.active{background:rgba(255,107,0,.12);border-color:rgba(255,107,0,.45);color:var(--orange-2)}
+.filter-result-note{font:9px 'Space Mono',monospace;color:var(--dim);padding:0 2px 12px}
+.view-details-btn{grid-column:1/-1;background:#151916;border:1px solid #343a35;color:#e8ebe7;border-radius:8px;padding:9px 10px;font-size:10px;font-weight:800}
+.view-details-btn:hover{border-color:rgba(255,107,0,.5);color:var(--orange-2)}
+.order-card.is-highlighted{animation:newOrderPulse 1.8s ease-in-out infinite}
+
+.order-drawer-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.68);backdrop-filter:blur(5px);z-index:10000;display:none;justify-content:flex-end}
+.order-drawer-backdrop.show{display:flex}
+.order-drawer{width:min(560px,100vw);height:100%;background:#0f1210;border-left:1px solid #2c322d;box-shadow:-25px 0 70px rgba(0,0,0,.55);overflow:auto;animation:drawerIn .2s ease-out}
+@keyframes drawerIn{from{transform:translateX(20px);opacity:.6}to{transform:none;opacity:1}}
+.drawer-head{position:sticky;top:0;z-index:2;display:flex;justify-content:space-between;align-items:flex-start;gap:15px;padding:18px 20px;background:rgba(15,18,16,.96);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+.drawer-kicker{font:9px 'Space Mono',monospace;color:var(--orange);letter-spacing:.14em;text-transform:uppercase}
+.drawer-id{font:22px 'Space Mono',monospace;font-weight:800;margin-top:5px}
+.drawer-close{width:36px;height:36px;border-radius:9px;background:#181c19;border:1px solid var(--line);color:var(--text);font-size:20px}
+.drawer-body{padding:18px 20px 30px}
+.drawer-section{border:1px solid #272d29;background:#131714;border-radius:13px;padding:13px;margin-bottom:12px}
+.drawer-section-title{font:9px 'Space Mono',monospace;color:var(--dim);letter-spacing:.1em;text-transform:uppercase;margin-bottom:11px}
+.drawer-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.drawer-field{min-width:0}.drawer-field.full{grid-column:1/-1}
+.drawer-label{font:8px 'Space Mono',monospace;color:var(--dim);text-transform:uppercase;margin-bottom:4px}.drawer-value{font-size:11px;color:#eef0ec;line-height:1.5;word-break:break-word}.drawer-value.mono{font-family:'Space Mono',monospace}
+.drawer-items{display:flex;flex-direction:column;gap:0}
+.drawer-item{display:grid;grid-template-columns:minmax(0,1fr) 55px 85px;gap:8px;padding:9px 0;border-top:1px solid #232823;font-size:10px;align-items:center}.drawer-item:first-child{border-top:0}.drawer-item-head{font:8px 'Space Mono',monospace;color:var(--dim);text-transform:uppercase}.drawer-item-name{font-weight:700}.drawer-item-qty,.drawer-item-price{text-align:right;font-family:'Space Mono',monospace;color:#cfd4cf}
+.drawer-money{display:flex;flex-direction:column;gap:6px}.drawer-money-row{display:flex;justify-content:space-between;gap:12px;font-size:10px;color:#b7bdb7}.drawer-money-row span:last-child{font-family:'Space Mono',monospace;color:#e5e8e4}.drawer-money-row.discount span:last-child{color:var(--green)}.drawer-money-row.total{padding-top:9px;margin-top:4px;border-top:1px solid #2b302c;font-size:14px;font-weight:900;color:#fff}.drawer-money-row.total span:last-child{color:var(--orange-2);font-size:15px}
+.drawer-actions{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:14px}.drawer-action{border:1px solid var(--line);background:#171b18;color:#f0f2ee;border-radius:9px;padding:10px 9px;font-size:10px;font-weight:800}.drawer-action.whatsapp{background:#1da956;border-color:#1da956;color:#fff}.drawer-action.call{background:#17261c;border-color:rgba(55,201,120,.3);color:#9ff0be}.drawer-action.print{background:var(--orange);border-color:var(--orange);color:#111}
+.drawer-status{display:flex;align-items:center;justify-content:space-between;gap:10px}.drawer-status select{background:var(--bg);border:1px solid var(--line);color:var(--text);border-radius:8px;padding:8px;font-size:10px}
+@media(max-width:900px){.order-filter-bar{grid-template-columns:1fr 1fr}.order-filter-bar .search-wrap{grid-column:1/-1}}
+@media(max-width:600px){.order-filter-bar{grid-template-columns:1fr}.order-filter-bar .search-wrap{grid-column:auto}.drawer-grid{grid-template-columns:1fr}.drawer-field.full{grid-column:auto}.drawer-actions{grid-template-columns:1fr}.order-drawer{width:100%}}
+
+/* Rider management enhancements */
+.rider-manager{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:18px}
+.rider-panel,.rider-summary{background:#fff;border:1px solid #e8e8e8;border-radius:18px;padding:20px;box-shadow:0 10px 30px rgba(0,0,0,.05)}
+.rider-panel-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px}
+.rider-panel-head h2{margin:0;font-size:18px}
+.rider-panel-head p{margin:4px 0 0;color:#777;font-size:13px}
+.rider-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.rider-chip{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px;border:1px solid #ececec;border-radius:14px;background:#fafafa}
+.rider-chip-main{display:flex;align-items:center;gap:11px;min-width:0}
+.rider-avatar{width:38px;height:38px;border-radius:12px;background:#111;color:#fff;display:grid;place-items:center;font-weight:800}
+.rider-chip strong{display:block;font-size:14px}
+.rider-chip small{display:block;color:#777;margin-top:3px}
+.rider-count{font-size:12px;font-weight:800;color:#555;background:#fff;border:1px solid #e5e5e5;padding:6px 9px;border-radius:999px}
+.rider-add-row{display:flex;gap:10px;margin-top:16px}
+.rider-add-row input{flex:1;min-width:0;border:1px solid #ddd;border-radius:11px;padding:11px 12px;font:inherit}
+.rider-add-row button{border:0;border-radius:11px;background:#111;color:#fff;font-weight:800;padding:0 16px;cursor:pointer}
+.rider-empty{padding:24px;text-align:center;color:#777;border:1px dashed #ddd;border-radius:14px}
+.rider-assign-state{font-size:11px;color:#777;margin-top:6px}
+@media(max-width:900px){.rider-manager{grid-template-columns:1fr}.rider-grid{grid-template-columns:1fr}}
+
 </style>
-</head>
 <body>
 <div id="app">
-
-  <!-- ============ PASSCODE GATE ============ -->
   <div id="gate">
     <svg class="bolt" viewBox="0 0 40 40" fill="none"><path d="M22 2 L8 22 H18 L15 38 L33 15 H22 L26 2 Z" fill="#ea1d25" stroke="#ffc72c" stroke-width="1.5" stroke-linejoin="round"/></svg>
-    <h1 class="display">ZINGO ADMIN</h1>
-    <p>Enter your admin passcode to view live orders.</p>
+    <h1 class="display">ZINGO RESTAURANT PARTNER</h1>
+    <p>Enter your admin passcode to access live operations.</p>
     <input type="password" id="gate-input" placeholder="PASSCODE" maxlength="30" onkeydown="if(event.key==='Enter') tryUnlock();">
-    <br>
-    <button onclick="tryUnlock()">Unlock</button>
+    <button onclick="tryUnlock()">Unlock Dashboard</button>
     <div class="gerr" id="gate-err">Wrong passcode. Try again.</div>
-    <div class="gnote">Session stays open on this device for a few hours, then you'll be asked to re-enter your passcode.</div>
+    <div class="gnote">Your session is authenticated by the existing ZINGO Apps Script backend.</div>
   </div>
 
-  <!-- ============ DASHBOARD ============ -->
   <div id="dashboard">
-    <header class="top">
-      <svg class="bolt" width="30" height="30" viewBox="0 0 40 40" fill="none"><path d="M22 2 L8 22 H18 L15 38 L33 15 H22 L26 2 Z" fill="#ea1d25" stroke="#ffc72c" stroke-width="1.5" stroke-linejoin="round"/></svg>
-      <div class="brand">
-        <span class="name display">ZINGO</span>
-        <span class="tag">Order dashboard</span>
+    <aside class="sidebar" id="sidebar">
+      <div class="side-brand">
+        <svg class="bolt" viewBox="0 0 40 40" fill="none"><path d="M22 2 L8 22 H18 L15 38 L33 15 H22 L26 2 Z" fill="#ea1d25" stroke="#ffc72c" stroke-width="1.5" stroke-linejoin="round"/></svg>
+        <div><div class="brand-main display">ZINGO</div><span class="brand-sub">Restaurant Partner</span></div>
       </div>
-      <div class="refresh-info" id="refresh-info">—</div>
-      <button class="icon-btn" onclick="loadOrders()" title="Refresh now">⟳</button>
-      <button class="icon-btn logout" onclick="lockNow()" title="Log out">Logout</button>
-    </header>
+      <div class="side-label">Operations</div>
+      <nav class="nav" id="main-nav">
+        <button class="nav-btn active" data-view="dashboard" onclick="setAdminView('dashboard')"><span class="nav-ico">⌂</span>Dashboard</button>
+        <button class="nav-btn" data-view="new" onclick="setAdminView('new')"><span class="nav-ico">●</span>New Orders<span class="nav-count" id="nav-new-count">0</span></button>
+        <button class="nav-btn" data-view="preparing" onclick="setAdminView('preparing')"><span class="nav-ico">◒</span>Preparing<span class="nav-count" id="nav-preparing-count">0</span></button>
+        <button class="nav-btn" data-view="ready" onclick="setAdminView('ready')"><span class="nav-ico">✓</span>Ready<span class="nav-count" id="nav-ready-count">0</span></button>
+        <button class="nav-btn" data-view="out" onclick="setAdminView('out')"><span class="nav-ico">➜</span>Out for Delivery<span class="nav-count" id="nav-out-count">0</span></button>
+        <button class="nav-btn" data-view="completed" onclick="setAdminView('completed')"><span class="nav-ico">✓</span>Completed<span class="nav-count" id="nav-completed-count">0</span></button>
+        <button class="nav-btn" data-view="cancelled" onclick="setAdminView('cancelled')"><span class="nav-ico">×</span>Cancelled<span class="nav-count" id="nav-cancelled-count">0</span></button>
+        <button class="nav-btn" data-view="all" onclick="setAdminView('all')"><span class="nav-ico">≡</span>All Orders<span class="nav-count" id="nav-all-count">0</span></button>
+      </nav>
+      <div class="side-label" style="margin-top:10px">Business</div>
+      <nav class="nav">
+        <button class="nav-btn" data-view="sales" onclick="setAdminView('sales')"><span class="nav-ico">₹</span>Sales</button>
+        <button class="nav-btn" data-view="menu" onclick="setAdminView('menu')"><span class="nav-ico">▦</span>Menu</button>
+        <button class="nav-btn" data-view="riders" onclick="setAdminView('riders')"><span class="nav-ico">♢</span>Delivery Partners</button>
+        <button class="nav-btn" data-view="settings" onclick="setAdminView('settings')"><span class="nav-ico">⚙</span>Settings</button>
+      </nav>
+      <div class="side-footer">
+        <div class="status-live"><span class="live-dot"></span>Live order connection</div>
+        <small>Google Sheet source of truth</small>
+      </div>
+    </aside>
 
-    <div id="conn-banner" style="display:none; margin:12px 20px 0; padding:12px 14px; background:rgba(178,58,46,0.15); border:1px solid #6b3229; border-radius:10px; font-family:'Space Mono',monospace; font-size:11px; color:#e08074; line-height:1.6; word-break:break-word;"></div>
+    <section class="workspace">
+      <header class="top">
+        <button class="mobile-menu" onclick="toggleSidebar()" aria-label="Open menu">☰</button>
+        <div class="top-title">
+          <strong id="top-view-title">Dashboard</strong>
+          <span id="top-view-sub">ZINGO restaurant operations</span>
+        </div>
+        <div class="api-live-wrap">
+          <div class="api-live offline" id="api-live-status" aria-live="polite"><span class="dot"></span><span id="api-live-text">OFFLINE</span></div>
+        </div>
+        <div class="refresh-info" id="refresh-info">—</div>
+        <button class="icon-btn" onclick="manualRefreshOrders()" title="Refresh now">⟳</button>
+        <button class="icon-btn logout" onclick="lockNow()" title="Log out">Logout</button>
+      </header>
 
-    <main id="main-content"></main>
+      <div id="conn-banner" style="display:none; margin:0 28px; padding:12px 14px; border-radius:10px; font:11px 'Space Mono',monospace; line-height:1.6; word-break:break-word;"></div>
 
-    <button class="cancelled-toggle" id="cancelled-toggle" onclick="toggleCancelled()" style="display:none;"></button>
-    <div id="cancelled-list"></div>
+      <main id="main-content"></main>
+    </section>
   </div>
-
 </div>
+<div class="new-order-toast-stack" id="new-order-toast-stack" aria-live="polite" aria-atomic="true"></div>
 
+<div class="order-drawer-backdrop" id="order-drawer-backdrop" onclick="if(event.target===this) closeOrderDetails()">
+  <aside class="order-drawer" role="dialog" aria-modal="true" aria-labelledby="drawer-order-id">
+    <div class="drawer-head">
+      <div><div class="drawer-kicker">Order Details</div><div class="drawer-id" id="drawer-order-id">—</div></div>
+      <button class="drawer-close" onclick="closeOrderDetails()" aria-label="Close order details">×</button>
+    </div>
+    <div class="drawer-body" id="drawer-body"></div>
+  </aside>
+</div>
 <script>
 /* ============================================================
    Your passcode is checked entirely on the server now (see
@@ -173,20 +441,31 @@ const ORDERS_API_URL = 'https://script.google.com/macros/s/AKfycbw1LUXQyMLDnhDV-
 const SESSION_KEY = 'zingo_admin_session';
 
 const STATUS_LABELS = {
-  placed: 'New', confirmed: 'Confirmed', preparing: 'Preparing',
-  out: 'Out for delivery', delivered: 'Delivered', cancelled: 'Cancelled'
+  placed: 'New', confirmed: 'Accepted', preparing: 'Preparing',
+  out: 'Out for Delivery', delivered: 'Delivered', ready: 'Ready', cancelled: 'Cancelled'
 };
-// Both fresh states collapse straight to "preparing" — the kanban board
-// only has 3 working columns, so there's no separate "confirmed" stop.
-const NEXT_STATUS = { placed:'preparing', confirmed:'preparing', preparing:'out', out:'delivered' };
+const WORKFLOW = ['placed','confirmed','preparing','ready','out','delivered'];
+const NEXT_STATUS = { placed:'confirmed', confirmed:'preparing', preparing:'ready', ready:'out', out:'delivered' };
 const PAYMENT_OPTIONS = ['Cash on Delivery', 'Paid Online'];
 const RIDERS_KEY = 'zingo_admin_riders'; // local convenience list only — not customer data
 
 let orders = [];
+let previousOrderIds = null;       // null = first successful load; prevents alerts for existing orders
+let notifiedOrderIds = new Set();  // prevents repeat sound/notification for the same order
+let highlightedOrderIds = new Set();
 let pollTimer = null;
 let lockTimer = null;
+let loadInFlight = false;
 let cancelledShown = false;
 let authToken = null; // issued by the server on login — sent with every admin request
+let notificationAudioContext = null;
+let orderFilters = { query:'', status:'all', date:'all' };
+let openOrderId = null;
+
+try{
+  const storedNotified = JSON.parse(sessionStorage.getItem('zingo_notified_order_ids') || '[]');
+  if(Array.isArray(storedNotified)) notifiedOrderIds = new Set(storedNotified.map(String));
+}catch(e){ /* ignore unavailable sessionStorage */ }
 
 async function tryUnlock(){
   const val = document.getElementById('gate-input').value;
@@ -215,17 +494,21 @@ async function tryUnlock(){
 
 function startSession(exp, token){
   authToken = token;
+  unlockNotificationAudio();
   document.getElementById('gate').style.display = 'none';
   document.getElementById('dashboard').classList.add('show');
   renderBoard(); // shell visible immediately, even before the first fetch resolves
-  loadOrders();
-  pollTimer = setInterval(loadOrders, 20000);
+  loadOrders({initial:true});
+  // Efficient polling: one request about every 8 seconds, with overlap protection.
+  pollTimer = setInterval(() => loadOrders({poll:true}), 8000);
   const msLeft = exp - Date.now();
   lockTimer = setTimeout(lockNow, Math.max(msLeft, 0));
 }
 
 function lockNow(){
   authToken = null;
+  previousOrderIds = null;
+  highlightedOrderIds.clear();
   localStorage.removeItem(SESSION_KEY);
   if(pollTimer) clearInterval(pollTimer);
   if(lockTimer) clearTimeout(lockTimer);
@@ -248,39 +531,105 @@ function checkExistingSession(){
   }catch(e){ /* corrupted/old session data — just show the gate */ }
 }
 
-/* ---------------- riders (local convenience list) ---------------- */
+/* ---------------- riders (existing local convenience list) ----------------
+   Rider names remain a lightweight local convenience list, as in the existing
+   portal. Order assignment itself is persisted through the existing backend.
+*/
+const DEFAULT_RIDERS = ['Unassigned','Rider 1','Rider 2','Rider 3'];
+
 function getRiderList(){
   try{
     const stored = JSON.parse(localStorage.getItem(RIDERS_KEY) || '[]');
-    return stored.length ? stored : ['Unassigned'];
-  }catch(e){ return ['Unassigned']; }
+    const list = Array.isArray(stored) ? stored.filter(Boolean).map(String) : [];
+    const merged = [...DEFAULT_RIDERS, ...list.filter(r => !DEFAULT_RIDERS.includes(r))];
+    return [...new Set(merged)];
+  }catch(e){ return [...DEFAULT_RIDERS]; }
 }
-function saveRiderList(list){ localStorage.setItem(RIDERS_KEY, JSON.stringify(list)); }
 
-function onRiderChange(id, selectEl){
-  if(selectEl.value === '__add__'){
-    const name = prompt('New rider name:');
-    selectEl.value = orders.find(o=>o.id===id)?.rider || 'Unassigned'; // revert while we wait
-    if(!name || !name.trim()) return;
-    const list = getRiderList();
-    if(!list.includes(name.trim())) list.push(name.trim());
-    saveRiderList(list);
-    setOrderField(id, 'rider', name.trim());
-    renderBoard();
+function saveRiderList(list){
+  const clean=[...new Set(list.map(x=>String(x).trim()).filter(Boolean))];
+  localStorage.setItem(RIDERS_KEY, JSON.stringify(clean));
+}
+
+function addRiderFromManager(){
+  const input=document.getElementById('new-rider-name');
+  const name=String(input?.value||'').trim();
+  if(!name){ input?.focus(); return; }
+  const list=getRiderList();
+  if(list.some(r=>r.toLowerCase()===name.toLowerCase())){
+    showConnBanner('That rider already exists.');
     return;
   }
-  setOrderField(id, 'rider', selectEl.value);
+  list.push(name);
+  saveRiderList(list);
+  if(input) input.value='';
+  hideConnBanner();
+  renderBoard();
+}
+
+async function onRiderChange(id, selectEl){
+  const order=orders.find(o=>String(o.id)===String(id));
+  if(!order) return;
+
+  const previous=String(order.rider||'Unassigned');
+  let next=String(selectEl.value||'Unassigned');
+
+  if(next === '__add__'){
+    const name=prompt('Enter the new rider name:');
+    selectEl.value=previous;
+    if(!name || !name.trim()) return;
+    const list=getRiderList();
+    const clean=name.trim();
+    if(!list.some(r=>r.toLowerCase()===clean.toLowerCase())) list.push(clean);
+    saveRiderList(list);
+    next=clean;
+    selectEl.value=next;
+  }
+
+  if(next===previous) return;
+
+  order.rider=next;
+  order._riderSaving=true;
+  renderBoard();
+
+  const saved=await pushOrderUpdate(order);
+  order._riderSaving=false;
+
+  if(!saved){
+    order.rider=previous;
+    renderBoard();
+    showConnBanner(`Rider assignment failed for ${order.id}. The previous rider was restored.`);
+    return;
+  }
+
+  hideConnBanner();
+  await loadOrders({manual:true});
+}
+
+async function setOrderField(id, field, value){
+  const order=orders.find(o=>String(o.id)===String(id));
+  if(!order) return;
+  const previous=order[field];
+  order[field]=value;
+  order[`_${field}Saving`]=true;
+  renderBoard();
+
+  const saved=await pushOrderUpdate(order);
+  order[`_${field}Saving`]=false;
+
+  if(!saved){
+    order[field]=previous;
+    renderBoard();
+    showConnBanner(`Update failed for ${order.id}. The previous value was restored.`);
+    return;
+  }
+
+  hideConnBanner();
+  await loadOrders({manual:true});
 }
 
 function onPaymentChange(id, selectEl){
   setOrderField(id, 'paymentStatus', selectEl.value);
-}
-
-function setOrderField(id, field, value){
-  const order = orders.find(o=>o.id===id);
-  if(!order) return;
-  order[field] = value; // optimistic
-  pushOrderUpdate(order);
 }
 
 /* ---------------- data ---------------- */
@@ -293,120 +642,581 @@ function hideConnBanner(){
   document.getElementById('conn-banner').style.display = 'none';
 }
 
-async function loadOrders(){
+async function loadOrders(options={}){
   const infoEl = document.getElementById('refresh-info');
 
   if(!ORDERS_API_URL || ORDERS_API_URL.includes('PASTE_YOUR')){
+    setApiConnectionStatus(false);
     showConnBanner("No orders API connected yet — paste your Apps Script URL into ORDERS_API_URL near the top of this file's <script> tag.");
     renderBoard();
     return;
   }
 
-  infoEl.textContent = 'Refreshing…';
+  // Prevent a slow request and the next polling cycle from overlapping.
+  if(loadInFlight) return;
+  loadInFlight = true;
+  if(infoEl) infoEl.textContent = options.poll ? 'Checking…' : 'Refreshing…';
+
   try{
-    const res = await fetch(ORDERS_API_URL + '?token=' + encodeURIComponent(authToken || ''));
+    const res = await fetch(ORDERS_API_URL + '?token=' + encodeURIComponent(authToken || ''), {
+      cache:'no-store'
+    });
     if(!res.ok){
       const bodyText = await res.text().catch(()=>'');
       throw new Error(`HTTP ${res.status} ${res.statusText} — ${bodyText.slice(0,300)}`);
     }
+
     const raw = await res.json();
     if(raw && raw.error === 'unauthorized'){
-      lockNow(); // server-side session expired or was never valid — send back to the login screen
+      lockNow(); // server-side session expired or was never valid
       return;
     }
     if(!Array.isArray(raw)){
       throw new Error('Expected a list of orders but got: ' + JSON.stringify(raw).slice(0,300));
     }
-    orders = raw.filter(o => o && o.id && o.id !== 'Order ID');
+
+    // De-duplicate by the real backend order ID. No new IDs are generated here.
+    const unique = new Map();
+    raw.filter(o => o && o.id && o.id !== 'Order ID').forEach(o => {
+      const id = String(o.id);
+      if(!unique.has(id)) unique.set(id, o);
+    });
+    const nextOrders = Array.from(unique.values());
+
+    const nextIds = new Set(nextOrders.map(o=>String(o.id)));
+    const previousIds = previousOrderIds;
+
+    // First successful fetch establishes the baseline. Existing orders are never announced as new.
+    if(previousIds !== null){
+      const genuinelyNew = nextOrders.filter(o => !previousIds.has(String(o.id)));
+      if(genuinelyNew.length){
+        genuinelyNew.forEach(o => {
+          const id = String(o.id);
+          highlightedOrderIds.add(id);
+          if(!notifiedOrderIds.has(id)){
+            notifiedOrderIds.add(id);
+            persistNotifiedOrderIds();
+            showNewOrderNotification(o);
+          }
+        });
+      }
+    }
+
+    orders = nextOrders;
+    previousOrderIds = nextIds;
+
+    // Remove highlighting once an order is no longer NEW.
+    highlightedOrderIds.forEach(id => {
+      const order = orders.find(o=>String(o.id)===id);
+      const status = order ? orderStatusKey(order) : null;
+      if(!order || !['placed','confirmed'].includes(status)) highlightedOrderIds.delete(id);
+    });
+
+    setApiConnectionStatus(true);
     hideConnBanner();
-    infoEl.textContent = 'Updated ' + new Date().toLocaleTimeString('en-IN', {hour:'2-digit', minute:'2-digit'});
+    if(infoEl) infoEl.textContent = 'Updated ' + new Date().toLocaleTimeString('en-IN', {hour:'2-digit', minute:'2-digit'});
   }catch(err){
+    // IMPORTANT: do not replace/clear `orders` on failure.
+    // The last successfully retrieved order list stays visible.
+    setApiConnectionStatus(false);
     console.error('=== ZINGO ADMIN: order fetch failed ===');
     console.error('Target Fetch URL:', ORDERS_API_URL);
     console.error('Error Message:', err.message);
     console.error('Error Stack:', err.stack);
-    infoEl.textContent = 'Refresh failed';
-    showConnBanner('Refresh failed: ' + err.message + ' — tap ⟳ to retry. Full details are in your browser console (F12 → Console tab).');
+    if(infoEl) infoEl.textContent = 'Offline · last data kept';
+    showConnBanner('Connection failed — existing orders are still shown. Tap ⟳ to retry.');
+  }finally{
+    loadInFlight = false;
+    renderBoard();
   }
-  renderBoard(); // always render the board shell, whether this load succeeded or not
+}
+
+function manualRefreshOrders(){
+  loadOrders({manual:true});
+}
+
+function setApiConnectionStatus(isLive){
+  const el = document.getElementById('api-live-status');
+  const txt = document.getElementById('api-live-text');
+  if(!el || !txt) return;
+  el.classList.toggle('live', !!isLive);
+  el.classList.toggle('offline', !isLive);
+  txt.textContent = isLive ? 'LIVE' : 'OFFLINE';
+}
+
+function persistNotifiedOrderIds(){
+  try{
+    // Keep the session list bounded. This is notification state only, never order storage.
+    const arr = Array.from(notifiedOrderIds).slice(-500);
+    sessionStorage.setItem('zingo_notified_order_ids', JSON.stringify(arr));
+  }catch(e){ /* ignore storage restrictions */ }
+}
+
+function unlockNotificationAudio(){
+  try{
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if(!Ctx) return;
+    if(!notificationAudioContext) notificationAudioContext = new Ctx();
+    if(notificationAudioContext.state === 'suspended') notificationAudioContext.resume().catch(()=>{});
+  }catch(e){ /* browser may not support Web Audio */ }
+}
+
+function playNewOrderSound(){
+  try{
+    const ctx = notificationAudioContext || new (window.AudioContext || window.webkitAudioContext)();
+    notificationAudioContext = ctx;
+    if(ctx.state === 'suspended'){
+      ctx.resume().catch(()=>{});
+    }
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(880, now);
+    osc.frequency.setValueAtTime(1174.66, now + 0.10);
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(0.12, now + 0.015);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.22);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.24);
+  }catch(e){
+    // Browser autoplay policy can block sound; the visual notification still works.
+  }
+}
+
+function showNewOrderNotification(order){
+  playNewOrderSound();
+
+  const stack = document.getElementById('new-order-toast-stack');
+  if(!stack) return;
+
+  const id = escapeHtml(order.id);
+  const name = escapeHtml(order.name || 'Customer');
+  const total = numberValue(order.total);
+  const amount = total === null ? '' : ` · ₹${total.toLocaleString('en-IN',{maximumFractionDigits:2})}`;
+
+  const toast = document.createElement('div');
+  toast.className = 'new-order-toast';
+  toast.innerHTML = `
+    <div class="toast-top">
+      <div class="toast-label">🟢 NEW ORDER</div>
+      <button class="toast-close" aria-label="Close notification">×</button>
+    </div>
+    <div class="toast-title">#${id}</div>
+    <div class="toast-meta">${name}${amount}</div>
+    <button class="toast-action">View NEW orders</button>
+  `;
+
+  toast.querySelector('.toast-close').onclick = () => toast.remove();
+  toast.querySelector('.toast-action').onclick = () => {
+    toast.remove();
+    setAdminView('new');
+  };
+  stack.appendChild(toast);
+
+  // Keep notifications short and non-blocking.
+  setTimeout(() => {
+    if(toast.isConnected) toast.remove();
+  }, 9000);
 }
 
 /* ---------------- rendering ---------------- */
+function escapeHtml(value){
+  return String(value ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');
+}
+function numberValue(value){
+  if(value===null || value===undefined || value==='') return null;
+  const n=Number(String(value).replace(/[₹,\s]/g,''));
+  return Number.isFinite(n)?n:null;
+}
+function firstNumber(obj,keys){
+  for(const key of keys){const n=numberValue(obj?.[key]);if(n!==null)return n;}
+  return null;
+}
+function moneyOrDash(value){
+  const n=numberValue(value); return n===null?'—':money(n);
+}
+function orderStatusKey(o){
+  const raw=String(o?.status ?? 'placed').trim().toLowerCase().replace(/[\s_-]+/g,'');
+  if(['placed','new','pending','received'].includes(raw)) return 'placed';
+  if(['confirmed','accepted','acceptedorder'].includes(raw)) return 'confirmed';
+  if(['preparing','processing','inkitchen'].includes(raw)) return 'preparing';
+  if(['ready','readyforpickup','foodready'].includes(raw)) return 'ready';
+  if(['out','outfordelivery','dispatched','pickedup'].includes(raw)) return 'out';
+  if(['delivered','completed','complete'].includes(raw)) return 'delivered';
+  if(['cancelled','canceled','rejected','rejectedorder'].includes(raw)) return 'cancelled';
+  return String(o?.status || 'placed').toLowerCase();
+}
+function parseOrderItems(raw){
+  if(Array.isArray(raw)){
+    return raw.map(item=>{
+      if(item && typeof item==='object'){
+        const name=item.name ?? item.item ?? item.title ?? 'Item';
+        const qty=numberValue(item.quantity ?? item.qty ?? item.count) ?? 1;
+        const price=firstNumber(item,['price','unitPrice','unit_price','rate','amount']);
+        const lineTotal=firstNumber(item,['lineTotal','line_total','itemTotal','item_total','total']);
+        return {name:String(name),qty,price,lineTotal};
+      }
+      return {name:String(item),qty:1,price:null,lineTotal:null};
+    });
+  }
+  const source=String(raw ?? '').trim();
+  if(!source)return [];
+  return source.split(/\s*,\s*|\s*\n\s*/).filter(Boolean).map(part=>{
+    const match=part.match(/^(.*?)\s*(?:×|x|X)\s*(\d+(?:\.\d+)?)\s*$/);
+    return match?{name:match[1].trim(),qty:Number(match[2]),price:null,lineTotal:null}:{name:part.trim(),qty:null,price:null,lineTotal:null};
+  });
+}
+
+function buildOrderBreakdown(o){
+  const subtotal=firstNumber(o,['subtotal','subTotal','sub_total','itemsSubtotal','itemSubtotal']);
+  const deliveryFee=firstNumber(o,['deliveryFee','delivery_fee','deliveryCharges','deliveryCharge','delivery']);
+  const packagingFee=firstNumber(o,['packagingFee','packaging_fee','packagingCharges','packagingCharge','packaging']);
+  const discount=firstNumber(o,['discount','discountAmount','discount_amount','couponDiscount','coupon_discount']);
+  const total=firstNumber(o,['total','grandTotal','grand_total','amount']);
+  return `<div class="oc-breakdown">
+    <div class="oc-money-row"><span>Subtotal</span><span>${moneyOrDash(subtotal)}</span></div>
+    <div class="oc-money-row"><span>Delivery fee</span><span>${moneyOrDash(deliveryFee)}</span></div>
+    <div class="oc-money-row"><span>Packaging fee</span><span>${moneyOrDash(packagingFee)}</span></div>
+    ${discount!==null?`<div class="oc-money-row discount"><span>Discount</span><span>−${money(discount)}</span></div>`:''}
+    <div class="oc-money-row total"><span>Total</span><span>${moneyOrDash(total)}</span></div>
+  </div>`;
+}
+function buildRiderSelect(o){
+  const riderList=getRiderList();
+  const rider=String(o.rider ?? '').trim() || 'Unassigned';
+  if(rider && !riderList.includes(rider)) riderList.push(rider);
+  const options=riderList.map(r=>`<option value="${escapeHtml(r)}" ${rider===r?'selected':''}>${escapeHtml(r)}</option>`).join('');
+  const saving=o._riderSaving ? ' · Saving…' : '';
+  return `<select ${o._riderSaving?'disabled':''} onchange="onRiderChange('${escapeHtml(String(o.id??''))}', this)">${options}<option value="__add__">+ Add new rider…</option></select><div class="rider-assign-state">${escapeHtml(rider)}${saving}</div>`;
+}
+function buildPaymentSelect(o){
+  const current=String(o.paymentStatus || 'Cash on Delivery');
+  return `<select onchange="onPaymentChange('${escapeHtml(String(o.id??''))}', this)">${PAYMENT_OPTIONS.map(p=>`<option value="${escapeHtml(p)}" ${current===p?'selected':''}>${escapeHtml(p)}</option>`).join('')}</select>`;
+}
+function buildWorkflowStepper(status,id){
+  const currentIndex=WORKFLOW.indexOf(status);
+  if(status==='cancelled'){
+    return `<div class="workflow-strip workflow-cancelled"><div class="workflow-cancelled-label"><span class="workflow-dot"></span> CANCELLED</div></div>`;
+  }
+  return `<div class="workflow-strip">${WORKFLOW.map((key,index)=>{
+    const done=index<currentIndex, active=index===currentIndex;
+    const clickable = key!==status;
+    return `<button type="button" class="workflow-step ${done?'done':''} ${active?'active':''}" title="${escapeHtml(STATUS_LABELS[key])}" onclick="${clickable?`advanceStatus('${escapeHtml(id)}','${key}')`:'void(0)'}">
+      <span class="workflow-step-dot">${done?'✓':index+1}</span><span>${escapeHtml(STATUS_LABELS[key])}</span>
+    </button>${index<WORKFLOW.length-1?'<span class="workflow-line '+(done?'done':'')+'"></span>':''}`;
+  }).join('')}</div>`;
+}
+
 function buildCard(o){
-  const status = o.status || 'placed';
-  const time = o.timestamp ? new Date(o.timestamp).toLocaleString('en-IN', {day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit'}) : '';
-  const nextStatus = NEXT_STATUS[status];
-  const waMsg = encodeURIComponent(`Hi ${o.name || ''}, this is Zingo — your order ${o.id} is ${(STATUS_LABELS[status] || status || '').toLowerCase()}.`);
-  const phoneDigits = String(o.phone ?? '').replace(/\D/g,'');
+  const status=orderStatusKey(o);
+  const d=orderDate(o);
+  const time=d?d.toLocaleString('en-IN',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}):String(o.timestamp ?? '—');
+  const items=parseOrderItems(o.items);
+  const quantityTotal=items.reduce((sum,item)=>sum+(Number(item.qty)||0),0);
+  const phoneText=String(o.phone ?? '').trim();
+  const phoneDigits=phoneText.replace(/\D/g,'');
+  const id=String(o.id ?? '');
+  const customer=String(o.name ?? '').trim() || 'Customer';
+  const address=String(o.address ?? '').trim();
+  const method=String(o.method ?? '').trim() || '—';
+  const paymentStatus=String(o.paymentStatus ?? '').trim();
+  const paymentDisplay=paymentStatus || method;
+  const label=STATUS_LABELS[status] || String(o.status || status);
 
-  const riderList = getRiderList();
-  if(o.rider && !riderList.includes(o.rider)) riderList.push(o.rider);
-  const riderOptions = riderList.map(r => `<option value="${r}" ${o.rider===r?'selected':''}>${r}</option>`).join('')
-    + `<option value="__add__">+ Add new rider…</option>`;
+  const itemsHtml=items.length?items.map(item=>`<div class="oc-item-row"><span class="oc-item-name">${escapeHtml(item.name)}</span><span class="oc-item-qty">${item.qty===null?'Qty —':'× '+escapeHtml(item.qty)}</span></div>`).join(''):
+    `<div class="oc-items-raw">${escapeHtml(String(o.items ?? '').trim() || 'No item details returned')}</div>`;
 
-  const paymentOptions = PAYMENT_OPTIONS.map(p => `<option value="${p}" ${(o.paymentStatus||'Cash on Delivery')===p?'selected':''}>${p}</option>`).join('');
+  let actions='';
+  if(status==='placed'){
+    actions=`<button class="act-btn primary-action" onclick="advanceStatus('${escapeHtml(id)}','confirmed')">ACCEPT</button><button class="act-btn danger-action" onclick="advanceStatus('${escapeHtml(id)}','cancelled')">REJECT</button>`;
+  }else if(status==='confirmed'){
+    actions=`<button class="act-btn primary-action full-action" onclick="advanceStatus('${escapeHtml(id)}','preparing')">START PREPARING</button>`;
+  }else if(status==='preparing'){
+    actions=`<button class="act-btn success-action full-action" onclick="advanceStatus('${escapeHtml(id)}','ready')">MARK READY</button>`;
+  }else if(status==='ready'){
+    actions=`<button class="act-btn primary-action full-action" onclick="advanceStatus('${escapeHtml(id)}','out')">OUT FOR DELIVERY</button>`;
+  }else if(status==='out'){
+    actions=`<button class="act-btn success-action full-action" onclick="advanceStatus('${escapeHtml(id)}','delivered')">DELIVERED</button>`;
+  }
+  if(status!=='delivered' && status!=='cancelled' && phoneDigits){
+    const wa=encodeURIComponent(`Hi ${customer}, this is Zingo — your order ${id} is ${label.toLowerCase()}.`);
+    actions+=`<button class="wa-btn" onclick="window.open('https://wa.me/${phoneDigits}?text=${wa}','_blank')">💬 MESSAGE CUSTOMER</button>`;
+  }
 
+  return `<article class="order-card ${status==='placed'||status==='confirmed'?'is-new':''} ${highlightedOrderIds.has(id)?'is-highlighted':''} ${status==='cancelled'?'is-cancelled':''}">
+    <div class="oc-headline"><div><div class="oc-id">#${escapeHtml(id)}</div><div class="oc-time-row"><span class="oc-live-dot"></span><span class="oc-time">${escapeHtml(time)}</span></div></div><span class="status-badge status-${escapeHtml(status)}">${escapeHtml(label)}</span></div>
+    <div class="oc-customer"><div><div class="oc-name">${escapeHtml(customer)}</div><div class="oc-phone">${phoneDigits?`<a href="tel:${phoneDigits}">${escapeHtml(phoneText)}</a>`:'Phone not provided'}</div></div><span class="oc-customer-badge">${quantityTotal?quantityTotal+' item'+(quantityTotal===1?'':'s'):'Order'}</span></div>
+    ${buildWorkflowStepper(status,id)}
+    <div class="oc-items-box"><div class="oc-items-title"><span>Items</span><strong>${quantityTotal?'Qty '+quantityTotal:'Quantity —'}</strong></div>${itemsHtml}</div>
+    ${address?`<div class="oc-address"><span class="oc-address-icon">⌖</span><span>${escapeHtml(address)}</span></div>`:''}
+    ${buildOrderBreakdown(o)}
+    <div class="oc-payment-row"><span class="oc-payment-label">Payment method</span><span class="oc-payment-value">${escapeHtml(paymentDisplay)}</span></div>
+    <div class="oc-status-row"><span class="oc-status-label">Order status</span><span class="status-badge status-${escapeHtml(status)}">${escapeHtml(label)}</span></div>
+    <div class="oc-actions">${actions}<button class="view-details-btn" onclick="openOrderDetails('${escapeHtml(id)}')">VIEW ORDER DETAILS</button><button class="view-details-btn kitchen-print-btn" type="button" onclick="zingoPrintKitchenOrderById('${escapeHtml(id)}')">👨‍🍳 PRINT KITCHEN ORDER</button></div>
+    ${o._statusSaving?`<div class="oc-saving">Saving status to ZINGO…</div>`:''}
+    <div class="oc-meta"><div><label>Rider</label>${buildRiderSelect(o)}</div><div><label>Payment</label>${buildPaymentSelect(o)}</div></div>
+  </article>`;
+}
+
+function setAdminView(view){
+  window.zingoAdminView = view || 'dashboard';
+  document.querySelectorAll('.nav-btn[data-view]').forEach(btn => btn.classList.toggle('active', btn.dataset.view === window.zingoAdminView));
+  const sidebar = document.getElementById('sidebar');
+  if(sidebar) sidebar.classList.remove('open');
+  renderBoard();
+}
+
+function toggleSidebar(){
+  const sidebar = document.getElementById('sidebar');
+  if(sidebar) sidebar.classList.toggle('open');
+}
+
+function money(v){
+  const n = Number(v);
+  if(!Number.isFinite(n)) return '₹0';
+  return '₹' + n.toLocaleString('en-IN', {maximumFractionDigits:2});
+}
+
+function orderDate(o){
+  if(!o || !o.timestamp) return null;
+  const raw = String(o.timestamp).trim();
+  const d = new Date(raw);
+  if(!Number.isNaN(d.getTime())) return d;
+  const m = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})[ ,]+(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+  if(m){
+    const dt = new Date(Number(m[3]), Number(m[2])-1, Number(m[1]), Number(m[4]), Number(m[5]), Number(m[6]||0));
+    if(!Number.isNaN(dt.getTime())) return dt;
+  }
+  return null;
+}
+
+function isTodayOrder(o){
+  const d = orderDate(o);
+  const now = new Date();
+  return !!d && d.getFullYear()===now.getFullYear() && d.getMonth()===now.getMonth() && d.getDate()===now.getDate();
+}
+
+function updateStats(){
+  const today=orders.filter(isTodayOrder);
+  const nonCancelled=today.filter(o=>orderStatusKey(o)!=='cancelled');
+  return {
+    todayOrders:today.length,
+    todaySales:nonCancelled.reduce((sum,o)=>sum+(numberValue(o.total)||0),0),
+    pending:orders.filter(o=>['placed','confirmed'].includes(orderStatusKey(o))).length,
+    preparing:orders.filter(o=>orderStatusKey(o)==='preparing').length,
+    out:orders.filter(o=>orderStatusKey(o)==='out').length
+  };
+}
+function updateNavCounts(){
+  const counts={
+    'nav-new-count':orders.filter(o=>['placed','confirmed'].includes(orderStatusKey(o))).length,
+    'nav-preparing-count':orders.filter(o=>orderStatusKey(o)==='preparing').length,
+    'nav-ready-count':orders.filter(o=>orderStatusKey(o)==='ready').length,
+    'nav-out-count':orders.filter(o=>orderStatusKey(o)==='out').length,
+    'nav-completed-count':orders.filter(o=>orderStatusKey(o)==='delivered').length,
+    'nav-cancelled-count':orders.filter(o=>orderStatusKey(o)==='cancelled').length,
+    'nav-all-count':orders.length
+  };
+  Object.entries(counts).forEach(([id,val])=>{
+    const el=document.getElementById(id);
+    if(el) el.textContent=val;
+  });
+
+  const newCountEl=document.getElementById('nav-new-count');
+  if(newCountEl){
+    const hasNew = orders.some(o=>['placed','confirmed'].includes(orderStatusKey(o)));
+    newCountEl.classList.toggle('has-new', hasNew);
+  }
+}
+function renderStats(){
+  const s=updateStats();
   return `
-    <div class="order-card">
-      <div class="oc-top">
-        <div><div class="oc-id">#${o.id}</div><div class="oc-time">${time}</div></div>
-        <span class="status-badge status-${status}">${STATUS_LABELS[status] || status}</span>
-      </div>
-      <div class="oc-name">${String(o.name ?? '').trim() || '—'}</div>
-      <div class="oc-phone">${o.phone !== undefined && o.phone !== null && String(o.phone).trim() ? `<a href="tel:${String(o.phone).replace(/[^\d+]/g,'')}">${String(o.phone)}</a>` : '—'}</div>
-      <div class="oc-addr">${String(o.address ?? '').trim() || '—'}</div>
-      <div class="oc-items">${String(o.items ?? '').trim() || '—'}</div>
-      <div class="oc-foot">
-        <span class="oc-total">₹${o.total ?? 0}</span>
-        <span class="oc-method">${String(o.method ?? '')}</span>
-      </div>
-      <div class="oc-meta">
-        <div>
-          <label>Rider</label>
-          <select onchange="onRiderChange('${o.id}', this)">${riderOptions}</select>
-        </div>
-        <div>
-          <label>Payment</label>
-          <select onchange="onPaymentChange('${o.id}', this)">${paymentOptions}</select>
-        </div>
-      </div>
-      <div class="oc-actions">
-        ${nextStatus ? `<button class="act-btn" onclick="advanceStatus('${o.id}','${nextStatus}')">Mark ${STATUS_LABELS[nextStatus]}</button>` : ''}
-        ${status!=='cancelled' && status!=='delivered' ? `<button class="act-btn secondary" onclick="advanceStatus('${o.id}','cancelled')">Cancel</button>` : ''}
-        ${phoneDigits ? `<button class="wa-btn" onclick="window.open('https://wa.me/${phoneDigits}?text=${waMsg}','_blank')">💬 Message</button>` : ''}
-      </div>
+    <div class="stats-grid">
+      <div class="stat-card"><div class="stat-label">Today's Orders</div><div class="stat-value">${s.todayOrders}</div><div class="stat-note">real orders received today</div></div>
+      <div class="stat-card"><div class="stat-label">Today's Sales</div><div class="stat-value stat-accent">${money(s.todaySales)}</div><div class="stat-note">non-cancelled orders today</div></div>
+      <div class="stat-card"><div class="stat-label">Pending Orders</div><div class="stat-value">${s.pending}</div><div class="stat-note">new + confirmed</div></div>
+      <div class="stat-card"><div class="stat-label">Preparing</div><div class="stat-value">${s.preparing}</div><div class="stat-note">currently in kitchen</div></div>
+      <div class="stat-card"><div class="stat-label">Out for Delivery</div><div class="stat-value stat-green">${s.out}</div><div class="stat-note">currently with delivery</div></div>
     </div>`;
 }
 
-function renderBoard(){
-  const pending = orders.filter(o => ['placed','confirmed'].includes(o.status || 'placed'));
-  const preparing = orders.filter(o => o.status === 'preparing');
-  const outForDelivery = orders.filter(o => o.status === 'out');
-  const delivered = orders.filter(o => o.status === 'delivered');
-  const cancelled = orders.filter(o => o.status === 'cancelled');
+function renderOrderColumns(sourceList=orders){
+  const groups=[
+    ['new','NEW',sourceList.filter(o=>['placed','confirmed'].includes(orderStatusKey(o)))],
+    ['preparing','PREPARING',sourceList.filter(o=>orderStatusKey(o)==='preparing')],
+    ['ready','READY',sourceList.filter(o=>orderStatusKey(o)==='ready')],
+    ['out','OUT FOR DELIVERY',sourceList.filter(o=>orderStatusKey(o)==='out')],
+    ['delivered','DELIVERED',sourceList.filter(o=>orderStatusKey(o)==='delivered')],
+    ['cancelled','CANCELLED',sourceList.filter(o=>orderStatusKey(o)==='cancelled')]
+  ];
+  return `<div class="order-management-board">${groups.map(([key,title,list])=>`<section class="order-lane lane-${key}">
+    <div class="order-lane-head"><span class="order-lane-dot"></span><span class="order-lane-title">${title}</span><span class="order-lane-count">${list.length}</span></div>
+    <div class="order-lane-body">${list.length?list.map(buildCard).join(''):`<div class="order-empty">No real orders</div>`}</div>
+  </section>`).join('')}</div>`;
+}
 
-  const col = (key, title, list) => `
-    <div class="kcol kcol-${key}">
-      <div class="kcol-head"><span class="kcol-dot"></span><span class="kcol-title">${title}</span><span class="kcol-count">${list.length}</span></div>
-      <div class="kcol-body">${list.length ? list.map(buildCard).join('') : `<div class="kcol-empty">No orders here yet</div>`}</div>
-    </div>`;
-
-  const main = document.getElementById('main-content');
-  main.innerHTML = `<div class="kanban">
-    ${col('pending','Pending', pending)}
-    ${col('preparing','Preparing', preparing)}
-    ${col('outfordelivery','Out for Delivery', outForDelivery)}
-    ${col('delivered','Delivered', delivered)}
+function renderOrderFilterBar(){
+  const q=escapeHtml(orderFilters.query||'');
+  const status=orderFilters.status||'all';
+  const date=orderFilters.date||'all';
+  return `<div class="order-filter-bar">
+    <div class="search-wrap"><input id="order-global-search" class="order-filter-search" value="${q}" placeholder="Search Order ID, customer name or phone…" oninput="setOrderQuery(this.value)"></div>
+    <select class="order-filter-select" onchange="setOrderFilter('status',this.value)">
+      <option value="all" ${status==='all'?'selected':''}>All statuses</option>
+      <option value="placed" ${status==='placed'?'selected':''}>NEW</option>
+      <option value="preparing" ${status==='preparing'?'selected':''}>PREPARING</option>
+      <option value="ready" ${status==='ready'?'selected':''}>READY</option>
+      <option value="out" ${status==='out'?'selected':''}>OUT FOR DELIVERY</option>
+      <option value="delivered" ${status==='delivered'?'selected':''}>DELIVERED</option>
+      <option value="cancelled" ${status==='cancelled'?'selected':''}>CANCELLED</option>
+    </select>
+    <div class="order-filter-dates">
+      ${[['today','Today'],['yesterday','Yesterday'],['7days','Last 7 Days'],['all','All Orders']].map(([key,label])=>`<button class="date-chip ${date===key?'active':''}" onclick="setOrderFilter('date','${key}')">${label}</button>`).join('')}
+    </div>
+    <button class="secondary-btn" onclick="clearOrderFilters()">Clear</button>
   </div>`;
-
-  const toggleBtn = document.getElementById('cancelled-toggle');
-  if(cancelled.length){
-    toggleBtn.style.display = 'block';
-    toggleBtn.textContent = (cancelledShown ? 'Hide' : 'Show') + ` cancelled orders (${cancelled.length})`;
-  } else {
-    toggleBtn.style.display = 'none';
+}
+function orderMatchesDate(o,range){
+  if(range==='all')return true;
+  const d=orderDate(o); if(!d)return false;
+  const now=new Date(); const start=new Date(now.getFullYear(),now.getMonth(),now.getDate());
+  const day=d.getFullYear()===start.getFullYear()&&d.getMonth()===start.getMonth()&&d.getDate()===start.getDate();
+  if(range==='today')return day;
+  if(range==='yesterday'){
+    const y=new Date(start); y.setDate(y.getDate()-1);
+    return d.getFullYear()===y.getFullYear()&&d.getMonth()===y.getMonth()&&d.getDate()===y.getDate();
   }
-  document.getElementById('cancelled-list').innerHTML = cancelled.map(buildCard).join('');
+  if(range==='7days'){
+    const seven=new Date(start); seven.setDate(seven.getDate()-6); return d>=seven&&d<new Date(start.getTime()+86400000);
+  }
+  return true;
+}
+function orderMatchesQuery(o,q){
+  if(!q)return true;
+  const id=String(o.id??'').toLowerCase(), name=String(o.name??'').toLowerCase(), phone=String(o.phone??'').toLowerCase();
+  const compactPhone=phone.replace(/\D/g,'');
+  const compactQuery=q.replace(/\D/g,'');
+  return id.includes(q)||name.includes(q)||phone.includes(q)||(compactQuery&&compactPhone.includes(compactQuery));
+}
+function getFilteredOrders(view='all'){
+  let list=[...orders];
+  const viewStatus={new:'placed',preparing:'preparing',ready:'ready',out:'out',completed:'delivered',cancelled:'cancelled'}[view];
+  if(viewStatus) list=list.filter(o=>orderStatusKey(o)===viewStatus || (view==='new'&&orderStatusKey(o)==='confirmed'));
+  if(orderFilters.status!=='all') list=list.filter(o=>orderStatusKey(o)===orderFilters.status || (orderFilters.status==='placed'&&orderStatusKey(o)==='confirmed'));
+  if(orderFilters.date!=='all') list=list.filter(o=>orderMatchesDate(o,orderFilters.date));
+  const q=String(orderFilters.query||'').trim().toLowerCase();
+  if(q) list=list.filter(o=>orderMatchesQuery(o,q));
+  return list;
+}
+function setOrderFilter(field,value){ orderFilters[field]=value; refreshOrderResults(); syncOrderFilterControls(); }
+function setOrderQuery(value){ orderFilters.query=String(value||''); refreshOrderResults(); }
+function syncOrderFilterControls(){
+  document.querySelectorAll('.date-chip').forEach(btn=>btn.classList.toggle('active', btn.getAttribute('onclick')===`setOrderFilter('date','${orderFilters.date}')`));
+  const statusSelect=document.querySelector('.order-filter-select'); if(statusSelect) statusSelect.value=orderFilters.status;
+}
+function clearOrderFilters(){ orderFilters={query:'',status:'all',date:'all'}; renderBoard(); }
+function refreshOrderResults(){
+  const view=window.zingoAdminView||'dashboard';
+  const results=document.getElementById('order-results');
+  if(!results){renderBoard();return;}
+  results.innerHTML=renderOrderResults(view);
+  const input=document.getElementById('order-global-search');
+  if(input){input.focus(); input.setSelectionRange(input.value.length,input.value.length);}
+}
+function renderOrderResults(view){
+  if(view==='dashboard'){
+    const list=getFilteredOrders('all');
+    return `<div class="section-head"><h2>Live order management</h2><span>${list.length} matching real orders</span></div>${renderOrderColumns(list)}`;
+  }
+  const list=getFilteredOrders(view);
+  return `<div class="filter-result-note">Showing ${list.length} real order${list.length===1?'':'s'} matching the current filters.</div><div class="order-list" id="active-order-list">${list.map(buildCard).join('')||'<div class="empty-view" style="grid-column:1/-1">No real orders match the current filters.</div>'}</div>`;
+}
+function renderOrderManagementHeader(title,subtitle){
+  return `<div class="page-head"><div><div class="page-kicker">Restaurant order management</div><h1 class="page-title">${title}</h1><p class="page-sub">${subtitle}</p></div><div class="page-actions"><button class="secondary-btn" onclick="manualRefreshOrders()">Refresh orders</button></div></div>${renderOrderFilterBar()}`;
+}
+function renderListView(view,title,subtitle){ return `${renderOrderManagementHeader(title,subtitle)}<div id="order-results">${renderOrderResults(view)}</div>`; }
+function filterVisibleCards(input){ setOrderQuery(input.value); }
+
+
+function renderSalesView(){
+  const today=orders.filter(o=>orderStatusKey(o)!=='cancelled' && isTodayOrder(o));
+  const total=today.reduce((s,o)=>s+(Number(o.total)||0),0);
+  const completed=today.filter(o=>orderStatusKey(o)==='delivered').length;
+  const avg=today.length?total/today.length:0;
+  return `<div class="page-head"><div><div class="page-kicker">Business performance</div><h1 class="page-title">Sales</h1><p class="page-sub">Calculated directly from today's real orders.</p></div></div><div class="sales-grid"><div class="sales-card"><h3>Today's sales</h3><div class="sales-total">${money(total)}</div><div class="sales-note">${today.length} non-cancelled orders</div></div><div class="sales-card"><h3>Order performance</h3><div class="metric-row"><span>Today's orders</span><span>${today.length}</span></div><div class="metric-row"><span>Completed</span><span>${completed}</span></div><div class="metric-row"><span>Average order value</span><span>${money(avg)}</span></div></div></div>`;
+}
+
+function renderRidersView(){
+  const list=getRiderList();
+  const assignedCounts={};
+  list.forEach(r=>assignedCounts[r]=0);
+  orders.forEach(o=>{
+    const r=String(o.rider||'Unassigned').trim()||'Unassigned';
+    assignedCounts[r]=(assignedCounts[r]||0)+1;
+  });
+  const cards=list.map((r,i)=>{
+    const initials=r==='Unassigned'?'—':r.split(/\\s+/).map(x=>x[0]).slice(0,2).join('').toUpperCase();
+    return `<div class="rider-chip">
+      <div class="rider-chip-main">
+        <div class="rider-avatar">${escapeHtml(initials)}</div>
+        <div><strong>${escapeHtml(r)}</strong><small>${assignedCounts[r]||0} current order${(assignedCounts[r]||0)===1?'':'s'} assigned</small></div>
+      </div>
+      <span class="rider-count">${assignedCounts[r]||0}</span>
+    </div>`;
+  }).join('');
+
+  return `<div class="page-head">
+    <div><div class="page-kicker">Delivery operations</div><h1 class="page-title">Delivery Partners</h1><p class="page-sub">Assign real orders to riders using the existing backend. Rider names are kept in the portal's existing lightweight local list.</p></div>
+    <div class="page-actions"><button class="secondary-btn" onclick="manualRefreshOrders()">Refresh orders</button></div>
+  </div>
+  <div class="rider-manager">
+    <div class="rider-panel">
+      <div class="rider-panel-head"><div><h2>Rider list</h2><p>Available for assignment on every order card.</p></div><span class="status-pill">Existing system</span></div>
+      <div class="rider-grid">${cards||'<div class="rider-empty">No riders available.</div>'}</div>
+      <div class="rider-add-row">
+        <input id="new-rider-name" type="text" maxlength="40" placeholder="Add rider name" onkeydown="if(event.key==='Enter')addRiderFromManager()">
+        <button onclick="addRiderFromManager()">+ Add Rider</button>
+      </div>
+    </div>
+    <div class="rider-summary">
+      <div class="page-kicker">Assignment status</div>
+      <h2 style="margin:5px 0 10px">Live rider coverage</h2>
+      <div class="metric-row"><span>Total riders</span><strong>${list.filter(r=>r!=='Unassigned').length}</strong></div>
+      <div class="metric-row"><span>Assigned orders</span><strong>${orders.filter(o=>String(o.rider||'').trim() && String(o.rider||'').trim()!=='Unassigned').length}</strong></div>
+      <div class="metric-row"><span>Unassigned orders</span><strong>${orders.filter(o=>!String(o.rider||'').trim() || String(o.rider||'').trim()==='Unassigned').length}</strong></div>
+      <p class="feature-note" style="display:block;margin-top:16px">Assignment changes are sent through the existing order API. If the backend rejects an assignment, the previous rider is restored.</p>
+    </div>
+  </div>`;
+}
+
+function renderFeatureView(view){
+  if(view==='riders') return renderRidersView();
+  const map={
+    menu:['▦','Menu','Menu management is intentionally not connected to a second data source.','Connect your existing menu workflow here later.'],
+    settings:['⚙','Settings','System settings are kept separate from the working order API.','No API, authentication, or Google Sheet settings were changed.']
+  };
+  const m=map[view];
+  return `<div class="page-head"><div><div class="page-kicker">ZINGO partner tools</div><h1 class="page-title">${m[1]}</h1><p class="page-sub">${m[2]}</p></div></div><div class="feature-card"><div class="feature-icon">${m[0]}</div><h2>${m[1]}</h2><p>${m[2]}</p><span class="feature-note">${m[3]}</span></div>`;
+}
+
+function renderBoard(){
+  const view=window.zingoAdminView||'dashboard';
+  updateNavCounts();
+  const titleMap={dashboard:'Dashboard',new:'New Orders',preparing:'Preparing',ready:'Ready',out:'Out for Delivery',completed:'Completed',cancelled:'Cancelled',all:'All Orders',sales:'Sales',menu:'Menu',riders:'Delivery Partners',settings:'Settings'};
+  const subMap={dashboard:'ZINGO restaurant operations',new:'Orders waiting for kitchen action',preparing:'Orders currently being prepared',ready:'Orders marked ready for dispatch',out:'Orders currently out for delivery',completed:'Completed customer orders',cancelled:'Cancelled customer orders',all:'Every real order returned by the backend',sales:'Live sales calculated from real orders',menu:'Menu management',riders:'Delivery partner management',settings:'Restaurant partner settings'};
+  const t=document.getElementById('top-view-title'), sub=document.getElementById('top-view-sub');
+  if(t)t.textContent=titleMap[view]||'Dashboard'; if(sub)sub.textContent=subMap[view]||'';
+  let html='';
+  if(view==='dashboard'){
+    html=`<div class="page-head"><div><div class="page-kicker">Restaurant overview</div><h1 class="page-title">Order Management</h1><p class="page-sub">Manage every real ZINGO order from NEW to DELIVERED.</p></div><div class="page-actions"><button class="primary-btn" onclick="manualRefreshOrders()">Refresh live orders</button></div></div>${renderStats()}${renderOrderFilterBar()}<div id="order-results">${renderOrderResults(view)}</div>`;
+  } else if(['new','preparing','ready','out','completed','cancelled','all'].includes(view)){
+    html=renderListView(view,titleMap[view],subMap[view]);
+  } else if(view==='sales') html=renderSalesView();
+  else html=renderFeatureView(view);
+  document.getElementById('main-content').innerHTML=html;
 }
 
 function toggleCancelled(){
@@ -415,13 +1225,203 @@ function toggleCancelled(){
   renderBoard();
 }
 
+
+/* ---------------- order details ---------------- */
+function findOrder(id){ return orders.find(o=>String(o.id)===String(id)); }
+function itemPriceText(item){
+  const p=item.price??null; return p===null?'—':money(p);
+}
+function itemLineText(item){
+  if(item.lineTotal!==null && item.lineTotal!==undefined)return money(item.lineTotal);
+  if(item.price!==null && item.qty!==null)return money(Number(item.price)*Number(item.qty));
+  return '—';
+}
+function openOrderDetails(id){
+  const order=findOrder(id); if(!order)return;
+  openOrderId=String(id);
+  const status=orderStatusKey(order), d=orderDate(order), items=parseOrderItems(order.items);
+  const phone=String(order.phone??'').trim(), digits=phone.replace(/\D/g,'');
+  const customer=String(order.name??'').trim()||'Customer';
+  const method=String(order.method??'').trim()||'—';
+  const payment=String(order.paymentStatus??'').trim()||method;
+  const subtotal=firstNumber(order,['subtotal','subTotal','sub_total','itemsSubtotal','itemSubtotal']);
+  const delivery=firstNumber(order,['deliveryFee','delivery_fee','deliveryCharges','deliveryCharge','delivery']);
+  const packaging=firstNumber(order,['packagingFee','packaging_fee','packagingCharges','packagingCharge','packaging']);
+  const discount=firstNumber(order,['discount','discountAmount','discount_amount','couponDiscount','coupon_discount']);
+  const total=firstNumber(order,['total','grandTotal','grand_total','amount']);
+  const itemRows=items.length?items.map((item,i)=>`<div class="drawer-item"><div class="drawer-item-name">${escapeHtml(item.name)}</div><div class="drawer-item-qty">× ${item.qty===null?'—':escapeHtml(item.qty)}</div><div class="drawer-item-price">${itemPriceText(item)}<br><small>${itemLineText(item)}</small></div></div>`).join(''):`<div class="drawer-value">${escapeHtml(String(order.items??'No item details returned'))}</div>`;
+  const statusOptions=['placed','preparing','ready','out','delivered','cancelled'];
+  document.getElementById('drawer-order-id').textContent='#'+String(order.id??'');
+  document.getElementById('drawer-body').innerHTML=`
+    <section class="drawer-section"><div class="drawer-section-title">Order information</div><div class="drawer-grid">
+      <div class="drawer-field"><div class="drawer-label">Date</div><div class="drawer-value">${d?escapeHtml(d.toLocaleDateString('en-IN')):'—'}</div></div>
+      <div class="drawer-field"><div class="drawer-label">Time</div><div class="drawer-value">${d?escapeHtml(d.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'})):escapeHtml(String(order.timestamp??'—'))}</div></div>
+      <div class="drawer-field"><div class="drawer-label">Customer</div><div class="drawer-value">${escapeHtml(customer)}</div></div>
+      <div class="drawer-field"><div class="drawer-label">Phone</div><div class="drawer-value mono">${escapeHtml(phone||'—')}</div></div>
+      <div class="drawer-field full"><div class="drawer-label">Delivery address</div><div class="drawer-value">${escapeHtml(String(order.address??'').trim()||'—')}</div></div>
+    </div></section>
+    <section class="drawer-section"><div class="drawer-section-title">Items · quantities · prices</div><div class="drawer-item drawer-item-head"><span>Item</span><span>Qty</span><span>Price / line</span></div><div class="drawer-items">${itemRows}</div></section>
+    <section class="drawer-section"><div class="drawer-section-title">Order total</div><div class="drawer-money">
+      <div class="drawer-money-row"><span>Subtotal</span><span>${moneyOrDash(subtotal)}</span></div>
+      <div class="drawer-money-row"><span>Delivery Fee</span><span>${moneyOrDash(delivery)}</span></div>
+      <div class="drawer-money-row"><span>Packaging Fee</span><span>${moneyOrDash(packaging)}</span></div>
+      ${discount!==null?`<div class="drawer-money-row discount"><span>Discount</span><span>−${money(discount)}</span></div>`:''}
+      <div class="drawer-money-row total"><span>Total</span><span>${moneyOrDash(total)}</span></div>
+    </div></section>
+    <section class="drawer-section"><div class="drawer-section-title">Payment & status</div><div class="drawer-grid">
+      <div class="drawer-field"><div class="drawer-label">Payment method</div><div class="drawer-value">${escapeHtml(method)}</div></div>
+      <div class="drawer-field"><div class="drawer-label">Payment status</div><div class="drawer-value">${escapeHtml(payment)}</div></div>
+      <div class="drawer-field"><div class="drawer-label">Rider</div><div class="drawer-value">${escapeHtml(String(order.rider??'').trim()||'Unassigned')}</div></div>
+      <div class="drawer-field"><div class="drawer-label">Order status</div><div class="drawer-status"><span class="status-badge status-${escapeHtml(status)}">${escapeHtml(STATUS_LABELS[status]||status)}</span><select onchange="advanceStatusFromDrawer('${escapeHtml(String(order.id??''))}',this.value)">${statusOptions.map(st=>`<option value="${st}" ${st===status?'selected':''}>${escapeHtml(STATUS_LABELS[st]||st)}</option>`).join('')}</select></div></div>
+    </div></section>
+    <div class="drawer-actions">
+      ${digits?`<button class="drawer-action whatsapp" onclick="whatsappCustomer('${escapeHtml(digits)}','${escapeHtml(customer)}','${escapeHtml(String(order.id??''))}')">WhatsApp Customer</button>`:'<button class="drawer-action" disabled>WhatsApp Customer</button>'}
+      ${digits?`<button class="drawer-action call" onclick="window.location.href='tel:${escapeHtml(digits)}'">Call Customer</button>`:'<button class="drawer-action" disabled>Call Customer</button>'}
+      <button class="drawer-action print" onclick="printCustomerBill('${escapeHtml(String(order.id??''))}')">Print Customer Bill</button>
+    </div>`;
+  document.getElementById('order-drawer-backdrop').classList.add('show');
+  document.body.style.overflow='hidden';
+}
+function closeOrderDetails(){ openOrderId=null; const el=document.getElementById('order-drawer-backdrop'); if(el)el.classList.remove('show'); document.body.style.overflow=''; }
+async function advanceStatusFromDrawer(id,status){
+  if(!status)return;
+  await advanceStatus(id,status);
+  if(openOrderId===String(id)) openOrderDetails(id);
+}
+function whatsappCustomer(digits,customer,id){
+  const msg=encodeURIComponent(`Hi ${customer}, this is Zingo — your order ${id} is currently being processed.`);
+  window.open(`https://wa.me/${digits}?text=${msg}`,'_blank');
+}
+function getReceiptLogoSvg(){
+  const source = document.querySelector('.side-brand .bolt, #gate .bolt, svg.bolt');
+  if(!source) return '';
+  const clone = source.cloneNode(true);
+  clone.setAttribute('width','110');
+  clone.setAttribute('height','42');
+  clone.setAttribute('aria-hidden','true');
+  clone.querySelectorAll('[fill]').forEach(el=>el.setAttribute('fill','#000'));
+  clone.querySelectorAll('[stroke]').forEach(el=>el.setAttribute('stroke','#000'));
+  return clone.outerHTML;
+}
+
+function receiptNumber(value){
+  if(value===null || value===undefined || value==='') return null;
+  const n=Number(String(value).replace(/[₹,\s]/g,''));
+  return Number.isFinite(n) ? n : null;
+}
+
+function receiptMoney(value){
+  const n=receiptNumber(value);
+  return n===null ? '—' : '₹'+n.toFixed(0);
+}
+
+function receiptField(o,keys){
+  for(const k of keys){
+    if(o && o[k]!==undefined && o[k]!==null && o[k]!=='') return o[k];
+  }
+  return '';
+}
+
+function printCustomerBill(id){
+  const o=findOrder(id);
+  if(!o) return;
+
+  const items=parseOrderItems(o.items || '').map(item=>({
+    name:String(item.name || 'Item'),
+    qty:item.qty===null ? 1 : Number(item.qty)||1,
+    price:item.price===null ? null : receiptNumber(item.price)
+  }));
+  const timestamp=receiptField(o,['timestamp','createdAt','date','time']);
+  const d=timestamp ? new Date(timestamp) : null;
+  const dateText=d && !Number.isNaN(d.getTime()) ? d.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}) : String(timestamp||'');
+  const timeText=d && !Number.isNaN(d.getTime()) ? d.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',hour12:true}) : '';
+  const subtotal=receiptField(o,['subtotal','subTotal','sub_total','itemsSubtotal','itemSubtotal']);
+  const delivery=receiptField(o,['deliveryFee','delivery_fee','deliveryCharges','deliveryCharge','delivery']);
+  const packaging=receiptField(o,['packagingFee','packaging_fee','packagingCharges','packagingCharge','packaging']);
+  const discount=receiptField(o,['discount','discountAmount','discount_amount','couponDiscount','coupon_discount']);
+  const total=receiptField(o,['total','grandTotal','grand_total','amount']);
+  const method=receiptField(o,['method','paymentMethod','orderMethod']) || '—';
+  const logo=getReceiptLogoSvg();
+
+  const rows=items.map(item=>{
+    const line=item.price===null ? null : item.price*item.qty;
+    return `<div class="r-item"><div class="r-name">${escapeHtml(item.name)}</div><div class="r-qty">${escapeHtml(item.qty)}</div><div class="r-price">${line===null?'—':receiptMoney(line)}</div></div>`;
+  }).join('');
+
+  const receipt=document.getElementById('zingoThermalReceipt');
+  receipt.innerHTML=`
+    <div class="r-logo">${logo}</div>
+    <div class="r-tag">TASTE CAN'T WAIT • BARASAT</div>
+    <div class="r-rule"></div>
+    <div class="r-title">CUSTOMER ORDER</div>
+    <div class="r-meta"><b>Order ID</b><span>${escapeHtml(o.id)}</span></div>
+    <div class="r-meta"><b>Date</b><span>${escapeHtml(dateText)}</span></div>
+    <div class="r-meta"><b>Time</b><span>${escapeHtml(timeText)}</span></div>
+    <div class="r-customer"><b>Customer</b><br>${escapeHtml(o.name||'')}<br>${escapeHtml(o.phone||'')}</div>
+    <div class="r-rule"></div>
+    <div class="r-items-head"><span>ITEM</span><span>QTY</span><span>₹</span></div>
+    ${rows || '<div class="r-small">No item details returned</div>'}
+    <div class="r-rule"></div>
+    <div class="r-meta"><span>Subtotal</span><span>${receiptMoney(subtotal)}</span></div>
+    <div class="r-meta"><span>Delivery Fee</span><span>${receiptMoney(delivery)}</span></div>
+    <div class="r-meta"><span>Packaging Fee</span><span>${receiptMoney(packaging)}</span></div>
+    ${discount!=='' ? `<div class="r-meta"><span>Discount</span><span>-${receiptMoney(discount)}</span></div>` : ''}
+    <div class="r-total"><span>TOTAL</span><span>${receiptMoney(total)}</span></div>
+    <div class="r-rule"></div>
+    <div class="r-payment"><b>PAYMENT</b><span>${escapeHtml(String(method))}</span></div>
+    <div class="r-rule"></div>
+    <div class="r-footer">Thank You<br>ZINGO<br>TASTE CAN'T WAIT</div>`;
+
+  // Read-only: this function only renders already-loaded order data and calls print().
+  window.print();
+}
+
 /* ---------------- writes ---------------- */
-async function advanceStatus(id, newStatus){
-  const order = orders.find(o=>o.id===id);
+async function advanceStatus(id,newStatus){
+  const order=orders.find(o=>String(o.id)===String(id));
   if(!order) return;
-  order.status = newStatus; // optimistic update
+
+  const oldStatus=order.status;
+  const oldKey=orderStatusKey(order);
+  const targetKey=String(newStatus||'').toLowerCase();
+
+  // Enforce the restaurant workflow in the UI. NEW can go to ACCEPTED or CANCELLED;
+  // later stages can move forward. The workflow stepper also permits a deliberate
+  // correction to an earlier stage, but never changes the real Order ID.
+  const allowed = oldKey==='placed'
+    ? ['confirmed','cancelled']
+    : oldKey==='confirmed'
+      ? ['preparing']
+      : oldKey==='preparing'
+        ? ['ready']
+        : oldKey==='ready'
+          ? ['out']
+          : oldKey==='out'
+            ? ['delivered']
+            : [];
+
+  if(!allowed.includes(targetKey) && !(WORKFLOW.includes(targetKey) && targetKey!==oldKey)){
+    showConnBanner('That status transition is not available from the current stage.');
+    return;
+  }
+
+  order.status=targetKey;
+  order._statusSaving=true;
   renderBoard();
-  pushOrderUpdate(order);
+
+  const saved=await pushOrderUpdate(order);
+  order._statusSaving=false;
+
+  if(!saved){
+    order.status=oldStatus;
+    renderBoard();
+    showConnBanner(`Status update failed for ${order.id}. The order was restored to ${STATUS_LABELS[oldKey] || oldStatus}.`);
+    return;
+  }
+
+  hideConnBanner();
+  // Re-fetch after a successful write so the Sheet/backend remains the source of truth.
+  await loadOrders({manual:true});
 }
 
 async function pushOrderUpdate(order){
@@ -437,15 +1437,23 @@ async function pushOrderUpdate(order){
       })
     });
     const data = await res.json().catch(()=>null);
+
     if(data && data.error === 'unauthorized'){
-      lockNow(); // session expired mid-use — send back to login rather than pretending it saved
+      lockNow();
+      return false;
     }
+    if(!res.ok) return false;
+    if(data && (data.ok === false || data.success === false || data.error)) return false;
+    return true;
   }catch(err){
     console.error('=== ZINGO ADMIN: update did not save ===', order.id, err.message);
-    // next auto-refresh will resync from the sheet either way
+    return false;
   }
 }
-
+window.zingoAdminView = 'dashboard';
+document.addEventListener('pointerdown', unlockNotificationAudio, {once:false, passive:true});
+document.addEventListener('keydown', unlockNotificationAudio, {once:false});
+document.addEventListener('keydown', e=>{if(e.key==='Escape')closeOrderDetails();});
 checkExistingSession();
 </script>
 </body>
