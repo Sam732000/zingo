@@ -293,105 +293,6 @@ function hideConnBanner(){
   document.getElementById('conn-banner').style.display = 'none';
 }
 
-function normalizeHeaderKey(key){
-  return String(key ?? '')
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '');
-}
-
-function firstValue(obj, aliases){
-  if(!obj || typeof obj !== 'object') return '';
-  const keys = Object.keys(obj);
-  for(const alias of aliases){
-    const wanted = normalizeHeaderKey(alias);
-    const actual = keys.find(k => normalizeHeaderKey(k) === wanted);
-    if(actual !== undefined && obj[actual] !== undefined && obj[actual] !== null){
-      return obj[actual];
-    }
-  }
-  return '';
-}
-
-function normalizeOrder(rawOrder){
-  if(!rawOrder || typeof rawOrder !== 'object' || Array.isArray(rawOrder)) return null;
-
-  const order = {
-    id: firstValue(rawOrder, ['id','orderId','order id','Order ID','order_no','order number']),
-    timestamp: firstValue(rawOrder, ['timestamp','time','dateTime','datetime','date time','createdAt','created at','created']),
-    status: firstValue(rawOrder, ['status','orderStatus','order status']) || 'placed',
-    name: firstValue(rawOrder, ['name','customerName','customer name','customer']),
-    phone: firstValue(rawOrder, ['phone','phoneNumber','phone number','mobile','mobileNumber','mobile number']),
-    address: firstValue(rawOrder, ['address','deliveryAddress','delivery address']),
-    items: firstValue(rawOrder, ['items','item','orderItems','order items']),
-    total: firstValue(rawOrder, ['total','grandTotal','grand total','amount','orderTotal','order total']),
-    method: firstValue(rawOrder, ['method','paymentMethod','payment method','orderMethod','order method']),
-    rider: firstValue(rawOrder, ['rider','deliveryRider','delivery rider']),
-    paymentStatus: firstValue(rawOrder, ['paymentStatus','payment status','payment_status'])
-  };
-
-  if(!order.id) return null;
-
-  // Keep every real value from the backend; only stringify structured values
-  // so the existing renderer can display them without changing the data.
-  if(Array.isArray(order.items)){
-    order.items = order.items.map(item => {
-      if(item && typeof item === 'object'){
-        const name = firstValue(item, ['item','name','nm','itemName','item name']);
-        const qty = firstValue(item, ['qty','quantity']);
-        return name ? `${name}${qty ? ' x' + qty : ''}` : JSON.stringify(item);
-      }
-      return String(item);
-    }).join(', ');
-  } else if(order.items && typeof order.items === 'object'){
-    order.items = JSON.stringify(order.items);
-  }
-
-  return order;
-}
-
-function unwrapOrderPayload(raw){
-  if(Array.isArray(raw)) return raw;
-  if(!raw || typeof raw !== 'object') return [];
-  if(raw.error === 'unauthorized') return raw;
-
-  // Accept the common Apps Script response wrappers without changing the
-  // Google Sheet or the backend's stored data.
-  for(const key of ['orders','data','rows','result']){
-    if(Array.isArray(raw[key])) return raw[key];
-  }
-
-  // Some sheet APIs return {headers:[...], values:[...]} or {headers:[...], rows:[...]}.
-  const headers = Array.isArray(raw.headers) ? raw.headers : null;
-  const values = Array.isArray(raw.values) ? raw.values : (Array.isArray(raw.rows) ? raw.rows : null);
-  if(headers && values){
-    return values.map(row => {
-      if(!Array.isArray(row)) return row;
-      return headers.reduce((obj, header, i) => {
-        obj[header] = row[i];
-        return obj;
-      }, {});
-    });
-  }
-
-  // If the backend returns one order object, still display that real order.
-  if(firstValue(raw, ['id','orderId','order id','Order ID'])) return [raw];
-
-  return [];
-}
-
-function parseOrdersResponse(raw){
-  if(raw && raw.error === 'unauthorized') return raw;
-
-  const rows = unwrapOrderPayload(raw);
-  if(!Array.isArray(rows)){
-    throw new Error('Orders response could not be parsed.');
-  }
-
-  const normalized = rows.map(normalizeOrder).filter(Boolean);
-  return normalized;
-}
-
 async function loadOrders(){
   const infoEl = document.getElementById('refresh-info');
 
@@ -403,28 +304,86 @@ async function loadOrders(){
 
   infoEl.textContent = 'Refreshing…';
   try{
-    const res = await fetch(ORDERS_API_URL + '?token=' + encodeURIComponent(authToken || ''), {
-      cache: 'no-store'
-    });
+    const res = await fetch(ORDERS_API_URL + '?token=' + encodeURIComponent(authToken || ''));
     if(!res.ok){
       const bodyText = await res.text().catch(()=>'');
       throw new Error(`HTTP ${res.status} ${res.statusText} — ${bodyText.slice(0,300)}`);
     }
-
     const raw = await res.json();
     if(raw && raw.error === 'unauthorized'){
       lockNow(); // server-side session expired or was never valid — send back to the login screen
       return;
     }
 
-    const parsedOrders = parseOrdersResponse(raw);
+    /*
+      The Google Sheet is the source of truth.  Apps Script may return the
+      rows either as normal order objects or as Sheet-style column names.
+      Normalize only the shape needed by this existing UI; do not create or
+      alter any order data in the Sheet.
+    */
+    function firstValue(obj, keys){
+      for(const key of keys){
+        if(obj && Object.prototype.hasOwnProperty.call(obj, key)){
+          const value = obj[key];
+          if(value !== undefined && value !== null && String(value).trim() !== '') return value;
+        }
+      }
+      return '';
+    }
 
-    // Do not invent, cache, or merge orders locally. The array below is always
-    // replaced by what the Google Apps Script returned from the Sheet.
-    orders = parsedOrders;
+    function normalizeStatus(value){
+      const s = String(value ?? '').trim().toLowerCase().replace(/[_-]+/g,' ').replace(/\s+/g,' ');
+      if(!s) return 'placed';
+      if(['placed','new','pending','order placed','received','confirmed order','confirm','confirmed'].includes(s)) return s === 'confirmed' || s === 'confirmed order' ? 'confirmed' : 'placed';
+      if(['preparing','prepare','in preparation','being prepared','food preparation','processing'].includes(s)) return 'preparing';
+      if(['out','out for delivery','out for delivery ','dispatched','on the way','out for dispatch','delivery'].includes(s)) return 'out';
+      if(['delivered','complete','completed','order delivered'].includes(s)) return 'delivered';
+      if(['cancelled','canceled','cancel','order cancelled','order canceled'].includes(s)) return 'cancelled';
+      return s;
+    }
+
+    function extractOrderList(payload){
+      if(Array.isArray(payload)) return payload;
+      if(!payload || typeof payload !== 'object') return [];
+      for(const key of ['orders','data','rows','result']){
+        if(Array.isArray(payload[key])) return payload[key];
+      }
+      if(Array.isArray(payload.values)) return payload.values;
+      if(Array.isArray(payload.data?.orders)) return payload.data.orders;
+      return [payload];
+    }
+
+    function mapSheetRow(row, headers){
+      if(!Array.isArray(row)) return row;
+      const mapped = {};
+      headers.forEach((header, i) => { mapped[String(header).trim()] = row[i]; });
+      return mapped;
+    }
+
+    let rows = extractOrderList(raw);
+    const headers = Array.isArray(raw?.headers) ? raw.headers : null;
+    if(headers) rows = rows.map(row => mapSheetRow(row, headers));
+
+    orders = rows.map(o => {
+      const statusValue = firstValue(o, ['status','Status','STATUS','Order Status','order status']);
+      return {
+        ...o,
+        id: firstValue(o, ['id','ID','orderId','orderID','Order ID','OrderID']),
+        timestamp: firstValue(o, ['timestamp','Timestamp','time','Time','date','Date','Order Time','Order Date']),
+        status: normalizeStatus(statusValue),
+        name: firstValue(o, ['name','Name','customerName','Customer Name','Customer']),
+        phone: firstValue(o, ['phone','Phone','mobile','Mobile','Phone Number','Mobile Number']),
+        address: firstValue(o, ['address','Address','deliveryAddress','Delivery Address']),
+        items: firstValue(o, ['items','Items','orderItems','Order Items']),
+        total: firstValue(o, ['total','Total','amount','Amount','Grand Total','Order Total']),
+        method: firstValue(o, ['method','Method','paymentMethod','Payment Method','Payment']),
+        rider: firstValue(o, ['rider','Rider','deliveryRider','Delivery Rider']),
+        paymentStatus: firstValue(o, ['paymentStatus','Payment Status','payment_status']) || firstValue(o, ['method','Method','paymentMethod','Payment Method','Payment'])
+      };
+    }).filter(o => o && String(o.id || '').trim() && String(o.id).trim() !== 'Order ID');
 
     hideConnBanner();
-    infoEl.textContent = `Updated ${new Date().toLocaleTimeString('en-IN', {hour:'2-digit', minute:'2-digit'})} · ${orders.length} order${orders.length === 1 ? '' : 's'}`;
+    infoEl.textContent = 'Updated ' + new Date().toLocaleTimeString('en-IN', {hour:'2-digit', minute:'2-digit'});
   }catch(err){
     console.error('=== ZINGO ADMIN: order fetch failed ===');
     console.error('Target Fetch URL:', ORDERS_API_URL);
