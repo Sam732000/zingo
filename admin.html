@@ -293,6 +293,105 @@ function hideConnBanner(){
   document.getElementById('conn-banner').style.display = 'none';
 }
 
+function normalizeHeaderKey(key){
+  return String(key ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '');
+}
+
+function firstValue(obj, aliases){
+  if(!obj || typeof obj !== 'object') return '';
+  const keys = Object.keys(obj);
+  for(const alias of aliases){
+    const wanted = normalizeHeaderKey(alias);
+    const actual = keys.find(k => normalizeHeaderKey(k) === wanted);
+    if(actual !== undefined && obj[actual] !== undefined && obj[actual] !== null){
+      return obj[actual];
+    }
+  }
+  return '';
+}
+
+function normalizeOrder(rawOrder){
+  if(!rawOrder || typeof rawOrder !== 'object' || Array.isArray(rawOrder)) return null;
+
+  const order = {
+    id: firstValue(rawOrder, ['id','orderId','order id','Order ID','order_no','order number']),
+    timestamp: firstValue(rawOrder, ['timestamp','time','dateTime','datetime','date time','createdAt','created at','created']),
+    status: firstValue(rawOrder, ['status','orderStatus','order status']) || 'placed',
+    name: firstValue(rawOrder, ['name','customerName','customer name','customer']),
+    phone: firstValue(rawOrder, ['phone','phoneNumber','phone number','mobile','mobileNumber','mobile number']),
+    address: firstValue(rawOrder, ['address','deliveryAddress','delivery address']),
+    items: firstValue(rawOrder, ['items','item','orderItems','order items']),
+    total: firstValue(rawOrder, ['total','grandTotal','grand total','amount','orderTotal','order total']),
+    method: firstValue(rawOrder, ['method','paymentMethod','payment method','orderMethod','order method']),
+    rider: firstValue(rawOrder, ['rider','deliveryRider','delivery rider']),
+    paymentStatus: firstValue(rawOrder, ['paymentStatus','payment status','payment_status'])
+  };
+
+  if(!order.id) return null;
+
+  // Keep every real value from the backend; only stringify structured values
+  // so the existing renderer can display them without changing the data.
+  if(Array.isArray(order.items)){
+    order.items = order.items.map(item => {
+      if(item && typeof item === 'object'){
+        const name = firstValue(item, ['item','name','nm','itemName','item name']);
+        const qty = firstValue(item, ['qty','quantity']);
+        return name ? `${name}${qty ? ' x' + qty : ''}` : JSON.stringify(item);
+      }
+      return String(item);
+    }).join(', ');
+  } else if(order.items && typeof order.items === 'object'){
+    order.items = JSON.stringify(order.items);
+  }
+
+  return order;
+}
+
+function unwrapOrderPayload(raw){
+  if(Array.isArray(raw)) return raw;
+  if(!raw || typeof raw !== 'object') return [];
+  if(raw.error === 'unauthorized') return raw;
+
+  // Accept the common Apps Script response wrappers without changing the
+  // Google Sheet or the backend's stored data.
+  for(const key of ['orders','data','rows','result']){
+    if(Array.isArray(raw[key])) return raw[key];
+  }
+
+  // Some sheet APIs return {headers:[...], values:[...]} or {headers:[...], rows:[...]}.
+  const headers = Array.isArray(raw.headers) ? raw.headers : null;
+  const values = Array.isArray(raw.values) ? raw.values : (Array.isArray(raw.rows) ? raw.rows : null);
+  if(headers && values){
+    return values.map(row => {
+      if(!Array.isArray(row)) return row;
+      return headers.reduce((obj, header, i) => {
+        obj[header] = row[i];
+        return obj;
+      }, {});
+    });
+  }
+
+  // If the backend returns one order object, still display that real order.
+  if(firstValue(raw, ['id','orderId','order id','Order ID'])) return [raw];
+
+  return [];
+}
+
+function parseOrdersResponse(raw){
+  if(raw && raw.error === 'unauthorized') return raw;
+
+  const rows = unwrapOrderPayload(raw);
+  if(!Array.isArray(rows)){
+    throw new Error('Orders response could not be parsed.');
+  }
+
+  const normalized = rows.map(normalizeOrder).filter(Boolean);
+  return normalized;
+}
+
 async function loadOrders(){
   const infoEl = document.getElementById('refresh-info');
 
@@ -304,22 +403,28 @@ async function loadOrders(){
 
   infoEl.textContent = 'Refreshing…';
   try{
-    const res = await fetch(ORDERS_API_URL + '?token=' + encodeURIComponent(authToken || ''));
+    const res = await fetch(ORDERS_API_URL + '?token=' + encodeURIComponent(authToken || ''), {
+      cache: 'no-store'
+    });
     if(!res.ok){
       const bodyText = await res.text().catch(()=>'');
       throw new Error(`HTTP ${res.status} ${res.statusText} — ${bodyText.slice(0,300)}`);
     }
+
     const raw = await res.json();
     if(raw && raw.error === 'unauthorized'){
       lockNow(); // server-side session expired or was never valid — send back to the login screen
       return;
     }
-    if(!Array.isArray(raw)){
-      throw new Error('Expected a list of orders but got: ' + JSON.stringify(raw).slice(0,300));
-    }
-    orders = raw.filter(o => o && o.id && o.id !== 'Order ID');
+
+    const parsedOrders = parseOrdersResponse(raw);
+
+    // Do not invent, cache, or merge orders locally. The array below is always
+    // replaced by what the Google Apps Script returned from the Sheet.
+    orders = parsedOrders;
+
     hideConnBanner();
-    infoEl.textContent = 'Updated ' + new Date().toLocaleTimeString('en-IN', {hour:'2-digit', minute:'2-digit'});
+    infoEl.textContent = `Updated ${new Date().toLocaleTimeString('en-IN', {hour:'2-digit', minute:'2-digit'})} · ${orders.length} order${orders.length === 1 ? '' : 's'}`;
   }catch(err){
     console.error('=== ZINGO ADMIN: order fetch failed ===');
     console.error('Target Fetch URL:', ORDERS_API_URL);
