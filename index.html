@@ -694,7 +694,7 @@ let pendingOrder = null;
 
 /* Paste your deployed Google Apps Script Web App URL here (ends in /exec).
    Leave as-is and order logging is silently skipped — nothing breaks. */
-const ORDERS_API_URL = 'https://script.google.com/macros/s/AKfycbzmIPyFXe-W7h6MCd-Y0kxTdKLWT7ile6rCUGph_bkCLUb-wcqxuUkdF67nfeG-TPLpyA/exec';
+const ORDERS_API_URL = 'https://script.google.com/macros/s/AKfycbw1LUXQyMLDnhDV-SqQG8PYZwPLUWPgrZt9DOk_bYcNcP2IAmQqeFSJ_N6YL4uYK9WXaQ/exec';
 
 /* ============================================================
    GEOAPIFY API KEY — needed for "Use current location" to turn
@@ -724,10 +724,17 @@ async function fetchNextOrderId(){
       headers:{'Content-Type':'text/plain;charset=utf-8'},
       body: JSON.stringify({ action:'nextId' })
     });
+    if(!res.ok){
+      const bodyText = await res.text().catch(()=>'');
+      throw new Error(`HTTP ${res.status} ${res.statusText} — ${bodyText.slice(0,300)}`);
+    }
     const data = await res.json();
     if(data && data.id) return data.id;
-    throw new Error('no id in response');
+    throw new Error('Response had no id field: ' + JSON.stringify(data));
   }catch(err){
+    console.error('=== ZINGO: order ID did NOT sync to your sheet — using a local fallback ID instead ===');
+    console.error('Target URL:', ORDERS_API_URL);
+    console.error('Error:', err.message);
     fallbackSeq += 1;
     return 'ZINGO' + String(fallbackSeq).padStart(3,'0');
   }
@@ -761,7 +768,13 @@ function logOrder(order, status){
     method:'POST',
     headers: {'Content-Type':'text/plain;charset=utf-8'}, // avoids CORS preflight on Apps Script
     body: JSON.stringify(payload)
-  }).catch(()=>{}); // never block the customer's flow if this fails
+  })
+  .then(res => { if(!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`); })
+  .catch(err => {
+    console.error('=== ZINGO: this order did NOT save to your sheet ===');
+    console.error('Order ID:', order.id, '  Target URL:', ORDERS_API_URL);
+    console.error('Error:', err.message);
+  }); // still never blocks the customer's flow — console-only
 }
 
 /* ---------------- render menu ---------------- */
